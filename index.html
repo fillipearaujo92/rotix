@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Otimizador de Rotas</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    #map { height: 50vh; border-radius: 0.75rem; }
+    .leaflet-popup-content button {
+      margin: 4px 2px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    .leaflet-popup-content .delivered { background: #10b981; color: white; }
+    .leaflet-popup-content .notdelivered { background: #ef4444; color: white; }
+    .leaflet-popup-content .pending { background: #f59e0b; color: white; }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+  <div class="container mx-auto p-4 flex-1">
+    <div class="text-center mb-6">
+      <h1 class="text-2xl font-bold text-indigo-600">🚚 Otimizador de Rotas</h1>
+      <p class="text-gray-600">Carregue seu arquivo e acompanhe as entregas</p>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-md p-6 mb-6">
+      <input type="file" id="fileInput" accept=".xlsx,.xls" class="mb-3 block w-full text-sm text-gray-600"/>
+      <button id="optimizeBtn" class="w-full bg-indigo-600 text-white rounded-full py-2 font-semibold mb-2 disabled:opacity-50">🗺️ Otimizar Rota</button>
+      <button id="startBtn" class="w-full bg-green-600 text-white rounded-full py-2 font-semibold mb-2 disabled:opacity-50">🚦 Iniciar Rota</button>
+      <button id="exportBtn" class="w-full bg-purple-600 text-white rounded-full py-2 font-semibold disabled:opacity-50">⬇️ Exportar XLSX</button>
+    </div>
+
+    <div id="results" class="hidden space-y-6">
+      <div class="bg-white rounded-xl shadow-md p-6">
+        <h2 class="text-lg font-bold text-gray-700 mb-3">Mapa</h2>
+        <div id="map"></div>
+      </div>
+
+      <div class="bg-white rounded-xl shadow-md p-6">
+        <h2 class="text-lg font-bold text-gray-700 mb-3">🎯 Rota Otimizada</h2>
+        <div id="routeList" class="space-y-2"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Barra inferior -->
+  <div id="nextStopBar" class="hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-4 flex justify-between items-center z-50">
+    <div id="nextStopInfo" class="text-sm font-medium text-gray-700"></div>
+    <div class="flex space-x-2">
+      <button class="delivered px-3 py-1 rounded-md text-white" onclick="markNext('entregue')">✅</button>
+      <button class="notdelivered px-3 py-1 rounded-md text-white" onclick="markNext('naoentregue')">❌</button>
+      <button class="pending px-3 py-1 rounded-md text-white" onclick="markNext('pendente')">⏸️</button>
+    </div>
+  </div>
+
+<script>
+let deliveryData=[], userLocation=null, map, markers=[], routeLayer, routeStarted=false, userMarker;
+
+// ==== Upload ====
+document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+document.getElementById('optimizeBtn').addEventListener('click', optimizeRoute);
+document.getElementById('exportBtn').addEventListener('click', exportXLSX);
+document.getElementById('startBtn').addEventListener('click', startRoute);
+
+// ==== Localização inicial ====
+navigator.geolocation.getCurrentPosition(pos=>{
+  userLocation={lat:pos.coords.latitude,lng:pos.coords.longitude};
+},()=>{userLocation={lat:-23.55,lng:-46.63}});
+
+// ==== Upload Excel ====
+function handleFileUpload(e){
+  const file=e.target.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    const data=new Uint8Array(ev.target.result);
+    const wb=XLSX.read(data,{type:'array'});
+    const sheet=wb.Sheets[wb.SheetNames[0]];
+    deliveryData=XLSX.utils.sheet_to_json(sheet);
+    deliveryData.forEach(d=>d.status="pendente");
+    if(deliveryData.length) document.getElementById('optimizeBtn').disabled=false;
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ==== Distância ====
+function haversine(a,b){const toRad=d=>d*Math.PI/180,R=6371;
+  const dLat=toRad(b.lat-a.lat),dLon=toRad(b.lng-a.lng);
+  const lat1=toRad(a.lat),lat2=toRad(b.lat);
+  const h=Math.sin(dLat/2)**2+Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h));}
+
+// ==== Otimização ====
+function optimizeRoute(){
+  if(!deliveryData.length)return;
+  let start=0,best=Infinity;
+  deliveryData.forEach((d,i)=>{
+    const dist=haversine(userLocation,{lat:+d.Latitude,lng:+d.Longitude});
+    if(dist<best){best=dist;start=i;}
+  });
+  const unvisited=deliveryData.map((_,i)=>i);
+  let order=[],current=start;
+  while(unvisited.length){
+    order.push(current); unvisited.splice(unvisited.indexOf(current),1);
+    if(!unvisited.length) break;
+    let bestIdx=unvisited[0],min=Infinity;
+    unvisited.forEach(i=>{
+      const dist=haversine({lat:+deliveryData[current].Latitude,lng:+deliveryData[current].Longitude},{lat:+deliveryData[i].Latitude,lng:+deliveryData[i].Longitude});
+      if(dist<min){min=dist;bestIdx=i;}
+    });
+    current=bestIdx;
+  }
+  deliveryData=order.map((i,idx)=>({...deliveryData[i],Sequence:idx+1,status:deliveryData[i].status}));
+  updateUI();
+  document.getElementById('startBtn').disabled=false;
+  document.getElementById('exportBtn').disabled=false;
+}
+
+// ==== Atualizar UI ====
+function updateUI(){
+  if(!map){
+    map=L.map('map').setView([userLocation.lat,userLocation.lng],13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+  }
+  updateMarkers();
+  showNextStop();
+  drawNextRoute();
+  document.getElementById('routeList').innerHTML=deliveryData.map(d=>`
+    <div class="p-2 border rounded flex justify-between items-center">
+      <span><b>${d.Sequence}</b> - ${d['Destination Address']||'Sem endereço'}</span>
+      <span class="text-xs text-gray-500">${d.status}</span>
+    </div>`).join('');
+  document.getElementById('results').classList.remove('hidden');
+}
+
+// ==== Marcadores ====
+function updateMarkers(){
+  markers.forEach(m=>map.removeLayer(m)); markers=[];
+  const next=deliveryData.find(d=>d.status==="pendente");
+  deliveryData.forEach(d=>{
+    let color=d.status==="entregue"?"green":d.status==="naoentregue"?"red":"blue";
+    let size=28;
+    if(next && d.Sequence===next.Sequence && d.status==="pendente"){ color="orange"; size=36; }
+    const icon=L.divIcon({className:'',html:`<div style="background:${color};color:white;border-radius:50%;width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white">${d.Sequence}</div>`});
+    const mk=L.marker([+d.Latitude,+d.Longitude],{icon}).addTo(map);
+    mk.bindPopup(`<b>Parada ${d.Sequence}</b><br>${d['Destination Address']||''}<br>
+      <button class="delivered" onclick="changeStatus(${d.Sequence},'entregue')">✅</button>
+      <button class="notdelivered" onclick="changeStatus(${d.Sequence},'naoentregue')">❌</button>
+      <button class="pending" onclick="changeStatus(${d.Sequence},'pendente')">⏸️</button>`);
+    markers.push(mk);
+  });
+}
+
+// ==== Barra próxima parada ====
+function showNextStop(){
+  const next=deliveryData.find(d=>d.status==="pendente");
+  if(!next){document.getElementById('nextStopBar').classList.add("hidden");return;}
+  document.getElementById('nextStopBar').classList.remove("hidden");
+  document.getElementById('nextStopInfo').innerHTML=`<b>Parada ${next.Sequence}</b><br>${next['Destination Address']||''}`;
+}
+
+// ==== Rota até próxima parada ====
+async function drawNextRoute(){
+  const next=deliveryData.find(d=>d.status==="pendente");
+  if(!next) return;
+  const coords=`${userLocation.lng},${userLocation.lat};${next.Longitude},${next.Latitude}`;
+  const url=`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`;
+  const res=await fetch(url);
+  const data=await res.json();
+  if(data.routes && data.routes.length){
+    if(routeLayer) map.removeLayer(routeLayer);
+    routeLayer=L.geoJSON(data.routes[0].geometry,{style:{color:"#f59e0b",weight:6}}).addTo(map);
+  }
+}
+
+// ==== Iniciar rota ====
+function startRoute(){
+  routeStarted=true;
+  startTracking();
+  showNextStop();
+  drawNextRoute();
+}
+
+// ==== Localização em tempo real ====
+function startTracking() {
+  if (!navigator.geolocation) return;
+
+  navigator.geolocation.watchPosition(pos => {
+    const { latitude, longitude } = pos.coords;
+    userLocation = { lat: latitude, lng: longitude };
+
+    if (!userMarker) {
+      const pulseIcon = L.divIcon({
+        className: "",
+        html: `
+          <div class="relative">
+            <div class="w-6 h-6 bg-blue-500 rounded-full border-4 border-white"></div>
+            <div class="absolute inset-0 rounded-full bg-blue-400 opacity-50 animate-ping"></div>
+          </div>`
+      });
+      userMarker = L.marker([latitude, longitude], { icon: pulseIcon }).addTo(map).bindPopup("📍 Você está aqui");
+    } else {
+      userMarker.setLatLng([latitude, longitude]);
+    }
+
+    // redesenha a rota até próxima parada
+    drawNextRoute();
+  }, err => console.error(err), { enableHighAccuracy: true });
+}
+
+
+// ==== Status ====
+function markNext(status){
+  const next=deliveryData.find(d=>d.status==="pendente");
+  if(next){next.status=status; updateUI();}
+}
+function changeStatus(seq,status){
+  const stop=deliveryData.find(d=>d.Sequence===seq);
+  if(stop){stop.status=status; updateUI();}
+}
+
+// ==== Export ====
+function exportXLSX(){
+  const ws=XLSX.utils.json_to_sheet(deliveryData);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Rota');
+  XLSX.writeFile(wb,"rota_otimizada.xlsx");
+}
+</script>
+</body>
+</html>
