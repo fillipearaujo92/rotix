@@ -8,8 +8,9 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
   <style>
-    #map { height: 50vh; border-radius: 0.75rem; }
+    #map { height: calc(100vh - 160px); width: 100%; }
     .leaflet-popup-content button {
       margin: 4px 2px;
       padding: 4px 8px;
@@ -21,55 +22,130 @@
     .leaflet-popup-content .delivered { background: #10b981; color: white; }
     .leaflet-popup-content .notdelivered { background: #ef4444; color: white; }
     .leaflet-popup-content .pending { background: #f59e0b; color: white; }
+
+    /* Toast notification */
+    .toast {
+      position: fixed;
+      top: 60px;
+      right: 20px;
+      background: #1f2937;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+      z-index: 1000;
+    }
+    .toast.show { transform: translateX(0); }
+
+    #menuToggleBtn {
+  position: fixed; /* garante que não role com a tela */
+  z-index: 9999;   /* acima de qualquer camada do Leaflet */
+}
+
   </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col">
-  <div class="container mx-auto p-4 flex-1">
-    <div class="text-center mb-6">
-      <h1 class="text-2xl font-bold text-indigo-600">🚚 Otimizador de Rotas</h1>
-      <p class="text-gray-600">Carregue seu arquivo e acompanhe as entregas</p>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast">
+    <i class="fas fa-info-circle mr-2"></i>
+    <span id="toastMessage"></span>
+  </div>
+
+  <!-- Botão hambúrguer -->
+<button id="menuToggleBtn" class="top-4 left-4 bg-white shadow rounded-lg p-2">
+  <i class="fas fa-bars text-xl text-gray-700"></i>
+</button>
+
+
+  <!-- Overlay -->
+  <div id="menuOverlay" class="hidden fixed inset-0 bg-black bg-opacity-40 z-40"></div>
+
+  <!-- Menu retrátil -->
+  <div id="sideMenu" class="hidden fixed top-0 left-0 w-80 h-full bg-white shadow-2xl z-50 p-6 overflow-y-auto transform -translate-x-full transition-transform duration-300">
+    <div class="flex justify-between items-center mb-4">
+      <h4 class="font-semibold text-gray-800">
+        <i class="fas fa-list mr-2"></i>Lista de Entregas
+      </h4>
+      <button id="closeMenuBtn" class="text-gray-500 hover:text-red-500">
+        <i class="fas fa-times text-xl"></i>
+      </button>
     </div>
+    <div id="routeList"></div>
+  </div>
 
-    <div class="bg-white rounded-xl shadow-md p-6 mb-6">
-      <input type="file" id="fileInput" accept=".xlsx,.xls" class="mb-3 block w-full text-sm text-gray-600"/>
-      <button id="optimizeBtn" class="w-full bg-indigo-600 text-white rounded-full py-2 font-semibold mb-2 disabled:opacity-50">🗺️ Otimizar Rota</button>
-      <button id="startBtn" class="w-full bg-green-600 text-white rounded-full py-2 font-semibold mb-2 disabled:opacity-50">🚦 Iniciar Rota</button>
-      <button id="exportBtn" class="w-full bg-purple-600 text-white rounded-full py-2 font-semibold disabled:opacity-50">⬇️ Exportar XLSX</button>
-    </div>
-
-    <div id="results" class="hidden space-y-6">
-      <div class="bg-white rounded-xl shadow-md p-6">
-        <h2 class="text-lg font-bold text-gray-700 mb-3">Mapa</h2>
-        <div id="map"></div>
-      </div>
-
-      <div class="bg-white rounded-xl shadow-md p-6">
-        <h2 class="text-lg font-bold text-gray-700 mb-3">🎯 Rota Otimizada</h2>
-        <div id="routeList" class="space-y-2"></div>
-      </div>
+  <!-- Etapa 1: Upload -->
+  <div id="step1" class="flex-1 flex flex-col items-center justify-center p-6">
+    <div class="bg-white rounded-2xl shadow-lg p-10 w-full max-w-md text-center">
+      <h1 class="text-2xl font-bold text-indigo-600 mb-4">
+        <i class="fas fa-truck mr-2"></i>Otimizador de Rotas
+      </h1>
+      <p class="text-gray-600 mb-6">Carregue seu arquivo XLSX para começar</p>
+      <label for="fileInput" class="cursor-pointer block border-2 border-dashed border-indigo-400 rounded-xl p-10 hover:bg-indigo-50 transition">
+        <i class="fas fa-file-excel text-3xl text-indigo-600 mb-3 block"></i>
+        <span class="text-indigo-600 font-semibold">Clique ou arraste seu arquivo aqui</span>
+        <input type="file" id="fileInput" accept=".xlsx,.xls" class="hidden"/>
+      </label>
     </div>
   </div>
 
-  <!-- Barra inferior -->
-  <div id="nextStopBar" class="hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-4 flex justify-between items-center z-50">
-    <div id="nextStopInfo" class="text-sm font-medium text-gray-700"></div>
-    <div class="flex space-x-2">
-      <button class="delivered px-3 py-1 rounded-md text-white" onclick="markNext('entregue')">✅</button>
-      <button class="notdelivered px-3 py-1 rounded-md text-white" onclick="markNext('naoentregue')">❌</button>
-      <button class="pending px-3 py-1 rounded-md text-white" onclick="markNext('pendente')">⏸️</button>
+  <!-- Etapa 2: Seleção de colunas -->
+  <div id="step2" class="hidden flex-1 flex flex-col items-center justify-center p-6">
+    <div class="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md">
+      <h2 class="text-xl font-bold text-indigo-600 mb-4">
+        <i class="fas fa-list-check mr-2"></i>Selecione as informações
+      </h2>
+      <p class="text-gray-500 mb-4 text-sm">Escolha os campos que deseja visualizar durante as entregas</p>
+      <div id="columnsList" class="space-y-3 mb-6"></div>
+      <button id="confirmColumnsBtn" class="w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 transition">
+        <i class="fas fa-check mr-2"></i>Confirmar
+      </button>
+    </div>
+  </div>
+
+  <!-- Etapa 3: Mapa -->
+  <div id="step3" class="hidden flex-1 flex flex-col">
+    <div id="map"></div>
+    
+    <!-- Barra inferior de próxima parada -->
+    <div id="nextStopBar" class="hidden fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50 p-4">
+      <div class="flex justify-between items-center">
+        <div>
+          <h3 class="font-semibold text-gray-800">
+            <i class="fas fa-route mr-2 text-indigo-600"></i>Próxima Parada
+          </h3>
+          <div id="nextStopInfo" class="text-sm text-gray-700"></div>
+        </div>
+        <div class="flex space-x-2">
+          <button class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg shadow" onclick="markNext('entregue')">
+            ✅
+          </button>
+          <button class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow" onclick="markNext('naoentregue')">
+            ❌
+          </button>
+          <button class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg shadow" onclick="markNext('pendente')">
+            ⏸️
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
 <script>
-let deliveryData=[], userLocation=null, map, markers=[], routeLayer, routeStarted=false, userMarker;
+let deliveryData=[], userLocation=null, map, markers=[], routeLayer, userMarker;
+let selectedColumns=[]; 
 
 // ==== Upload ====
 document.getElementById('fileInput').addEventListener('change', handleFileUpload);
-document.getElementById('optimizeBtn').addEventListener('click', optimizeRoute);
-document.getElementById('exportBtn').addEventListener('click', exportXLSX);
-document.getElementById('startBtn').addEventListener('click', startRoute);
+document.getElementById('confirmColumnsBtn')?.addEventListener('click', () => {
+  document.getElementById('step2').classList.add('hidden');
+  document.getElementById('step3').classList.remove('hidden');
+  optimizeRoute();
+});
 
-// ==== Localização inicial ====
+// ==== Geolocalização ====
 navigator.geolocation.getCurrentPosition(pos=>{
   userLocation={lat:pos.coords.latitude,lng:pos.coords.longitude};
 },()=>{userLocation={lat:-23.55,lng:-46.63}});
@@ -83,10 +159,29 @@ function handleFileUpload(e){
     const wb=XLSX.read(data,{type:'array'});
     const sheet=wb.Sheets[wb.SheetNames[0]];
     deliveryData=XLSX.utils.sheet_to_json(sheet);
-    deliveryData.forEach(d=>d.status="pendente");
-    if(deliveryData.length) document.getElementById('optimizeBtn').disabled=false;
+    deliveryData.forEach((d,i)=>{ d.status="pendente"; d.Sequence=i+1; });
+
+    const cols=Object.keys(deliveryData[0]||{});
+    const container=document.getElementById("columnsList");
+    container.innerHTML=cols.map(c=>`
+      <label class="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+        <input type="checkbox" value="${c}" class="columnChk text-indigo-600"/>
+        <span>${c}</span>
+      </label>`).join('');
+
+    document.getElementById('step1').classList.add('hidden');
+    document.getElementById('step2').classList.remove('hidden');
   };
   reader.readAsArrayBuffer(file);
+}
+
+// ==== Toast Notification ====
+function showToast(message, duration = 3000) {
+  const toast = document.getElementById('toast');
+  const toastMessage = document.getElementById('toastMessage');
+  toastMessage.textContent = message;
+  toast.classList.add('show');
+  setTimeout(() => { toast.classList.remove('show'); }, duration);
 }
 
 // ==== Distância ====
@@ -117,26 +212,44 @@ function optimizeRoute(){
     current=bestIdx;
   }
   deliveryData=order.map((i,idx)=>({...deliveryData[i],Sequence:idx+1,status:deliveryData[i].status}));
+  initMap();
   updateUI();
-  document.getElementById('startBtn').disabled=false;
-  document.getElementById('exportBtn').disabled=false;
+  startTracking();
+  showToast(`Rota otimizada com ${deliveryData.length} entregas!`, 4000);
 }
 
-// ==== Atualizar UI ====
-function updateUI(){
+// ==== Inicializar mapa ====
+function initMap(){
   if(!map){
     map=L.map('map').setView([userLocation.lat,userLocation.lng],13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
   }
+}
+
+// ==== Atualizar estatísticas e UI ====
+function updateUI(){
   updateMarkers();
   showNextStop();
   drawNextRoute();
-  document.getElementById('routeList').innerHTML=deliveryData.map(d=>`
-    <div class="p-2 border rounded flex justify-between items-center">
-      <span><b>${d.Sequence}</b> - ${d['Destination Address']||'Sem endereço'}</span>
-      <span class="text-xs text-gray-500">${d.status}</span>
-    </div>`).join('');
-  document.getElementById('results').classList.remove('hidden');
+
+  document.getElementById('routeList').innerHTML=deliveryData.map(d=>{
+    let bg=d.status==="entregue"?"bg-green-50 border-green-200":d.status==="naoentregue"?"bg-red-50 border-red-200":"bg-yellow-50 border-yellow-200";
+    let text=d.status==="entregue"?"text-green-700":d.status==="naoentregue"?"text-red-700":"text-yellow-700";
+    let icon=d.status==="entregue"?"fas fa-check-circle":d.status==="naoentregue"?"fas fa-times-circle":"fas fa-clock";
+    
+    return `<div class="p-3 rounded-lg mb-2 border ${bg} flex justify-between items-center">
+              <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                  ${d.Sequence}
+                </div>
+                <span class="text-sm">${d['Destination Address']||'Sem endereço'}</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <i class="${icon} ${text}"></i>
+                <span class="${text} font-medium capitalize text-xs">${d.status.replace('naoentregue', 'não entregue')}</span>
+              </div>
+            </div>`;
+  }).join('');
 }
 
 // ==== Marcadores ====
@@ -147,12 +260,12 @@ function updateMarkers(){
     let color=d.status==="entregue"?"green":d.status==="naoentregue"?"red":"blue";
     let size=28;
     if(next && d.Sequence===next.Sequence && d.status==="pendente"){ color="orange"; size=36; }
-    const icon=L.divIcon({className:'',html:`<div style="background:${color};color:white;border-radius:50%;width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white">${d.Sequence}</div>`});
+    const icon=L.divIcon({className:'',html:`<div style="background:${color};color:white;border-radius:50%;width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.2)">${d.Sequence}</div>`});
     const mk=L.marker([+d.Latitude,+d.Longitude],{icon}).addTo(map);
     mk.bindPopup(`<b>Parada ${d.Sequence}</b><br>${d['Destination Address']||''}<br>
-      <button class="delivered" onclick="changeStatus(${d.Sequence},'entregue')">✅</button>
-      <button class="notdelivered" onclick="changeStatus(${d.Sequence},'naoentregue')">❌</button>
-      <button class="pending" onclick="changeStatus(${d.Sequence},'pendente')">⏸️</button>`);
+      <button class="delivered" onclick="changeStatus(${d.Sequence},'entregue')"><i class="fas fa-check"></i></button>
+      <button class="notdelivered" onclick="changeStatus(${d.Sequence},'naoentregue')"><i class="fas fa-times"></i></button>
+      <button class="pending" onclick="changeStatus(${d.Sequence},'pendente')"><i class="fas fa-pause"></i></button>`);
     markers.push(mk);
   });
 }
@@ -160,9 +273,22 @@ function updateMarkers(){
 // ==== Barra próxima parada ====
 function showNextStop(){
   const next=deliveryData.find(d=>d.status==="pendente");
-  if(!next){document.getElementById('nextStopBar').classList.add("hidden");return;}
+  if(!next){
+    document.getElementById('nextStopBar').classList.add("hidden");
+    showToast("🎉 Todas as entregas foram processadas!");
+    return;
+  }
   document.getElementById('nextStopBar').classList.remove("hidden");
-  document.getElementById('nextStopInfo').innerHTML=`<b>Parada ${next.Sequence}</b><br>${next['Destination Address']||''}`;
+
+  selectedColumns=[...document.querySelectorAll(".columnChk:checked")].map(c=>c.value);
+  let extraInfo=selectedColumns.map(c=>`<i class="fas fa-info-circle mr-1"></i>${c}: ${next[c]||''}`).join("<br>");
+
+  document.getElementById('nextStopInfo').innerHTML=`
+    <div class="flex flex-col space-y-1">
+      <div class="font-medium text-gray-800">${next['Destination Address']||'Sem endereço'}</div>
+      <div class="text-xs text-gray-500 mt-1">${extraInfo}</div>
+    </div>
+  `;
 }
 
 // ==== Rota até próxima parada ====
@@ -179,18 +305,9 @@ async function drawNextRoute(){
   }
 }
 
-// ==== Iniciar rota ====
-function startRoute(){
-  routeStarted=true;
-  startTracking();
-  showNextStop();
-  drawNextRoute();
-}
-
 // ==== Localização em tempo real ====
 function startTracking() {
   if (!navigator.geolocation) return;
-
   navigator.geolocation.watchPosition(pos => {
     const { latitude, longitude } = pos.coords;
     userLocation = { lat: latitude, lng: longitude };
@@ -198,40 +315,60 @@ function startTracking() {
     if (!userMarker) {
       const pulseIcon = L.divIcon({
         className: "",
-        html: `
-          <div class="relative">
-            <div class="w-6 h-6 bg-blue-500 rounded-full border-4 border-white"></div>
-            <div class="absolute inset-0 rounded-full bg-blue-400 opacity-50 animate-ping"></div>
-          </div>`
+        html: `<div class="relative"><div class="w-6 h-6 bg-blue-500 rounded-full border-4 border-white"></div><div class="absolute inset-0 rounded-full bg-blue-400 opacity-50 animate-ping"></div></div>`
       });
       userMarker = L.marker([latitude, longitude], { icon: pulseIcon }).addTo(map).bindPopup("📍 Você está aqui");
     } else {
       userMarker.setLatLng([latitude, longitude]);
     }
-
-    // redesenha a rota até próxima parada
     drawNextRoute();
   }, err => console.error(err), { enableHighAccuracy: true });
 }
 
-
 // ==== Status ====
 function markNext(status){
   const next=deliveryData.find(d=>d.status==="pendente");
-  if(next){next.status=status; updateUI();}
+  if(next){
+    next.status=status; 
+    updateUI();
+    const messages = {
+      'entregue': '✅ Entrega realizada!',
+      'naoentregue': '❌ Entrega não realizada',
+      'pendente': '⏸️ Entrega como pendente'
+    };
+    showToast(messages[status]);
+  }
 }
+
 function changeStatus(seq,status){
   const stop=deliveryData.find(d=>d.Sequence===seq);
   if(stop){stop.status=status; updateUI();}
 }
 
-// ==== Export ====
-function exportXLSX(){
-  const ws=XLSX.utils.json_to_sheet(deliveryData);
-  const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,'Rota');
-  XLSX.writeFile(wb,"rota_otimizada.xlsx");
+// ==== Menu lateral ====
+const menuBtn = document.getElementById("menuToggleBtn");
+const sideMenu = document.getElementById("sideMenu");
+const overlay = document.getElementById("menuOverlay");
+const closeBtn = document.getElementById("closeMenuBtn");
+
+function toggleMenu(force = null) {
+  const isOpen = !sideMenu.classList.contains("hidden");
+  const shouldOpen = force !== null ? force : !isOpen;
+
+  if (shouldOpen) {
+    sideMenu.classList.remove("hidden");
+    overlay.classList.remove("hidden");
+    setTimeout(() => sideMenu.classList.remove("-translate-x-full"), 10);
+  } else {
+    sideMenu.classList.add("-translate-x-full");
+    overlay.classList.add("hidden");
+    setTimeout(() => sideMenu.classList.add("hidden"), 300);
+  }
 }
+
+menuBtn.addEventListener("click", () => toggleMenu());
+closeBtn.addEventListener("click", () => toggleMenu(false));
+overlay.addEventListener("click", () => toggleMenu(false));
 </script>
 </body>
 </html>
