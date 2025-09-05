@@ -377,84 +377,81 @@ async function geocodeAddress(address) {
 // =================================================================================
 // OTIMIZAÇÃO E ROTEAMENTO (OSRM)
 // =================================================================================
-function optimizeRoute() {
+
+const delay = ms => new Promise(res => setTimeout(res, ms));
+
+async function optimizeRoute() {
   if (deliveryData.length === 0) return showToast('Nenhuma entrega para otimizar', 'warn');
 
-  showProgressModal('Iniciando otimização...');
+  showProgressModal('Iniciando otimização...', 0);
+  await delay(50);
 
-  // AUMENTANDO O TEMPO PARA 2 SEGUNDOS (2000ms)
+  // --- CORREÇÃO APLICADA AQUI ---
+  // Removemos a verificação do checkbox e usamos a localização do usuário como padrão.
+  let currentStartPoint = userLocation;
+  if (!currentStartPoint) {
+    // Se a localização do usuário não estiver disponível, usa a primeira entrega como fallback.
+    currentStartPoint = { lat: deliveryData[0].Latitude, lng: deliveryData[0].Longitude };
+    showToast('Localização não encontrada. Iniciando da primeira entrega.', 'warn');
+  }
+  // --- FIM DA CORREÇÃO ---
+
+  deliveryData.forEach(d => d.status = "pendente");
+
+  let unvisited = [...deliveryData];
+  let orderedRoute = [];
+  let currentPoint = currentStartPoint;
+  const totalStops = unvisited.length;
+
+  while (unvisited.length > 0) {
+    let nearestIndex = -1;
+    let minDistance = Infinity;
+    unvisited.forEach((stop, index) => {
+      const dist = haversine(currentPoint, { lat: stop.Latitude, lng: stop.Longitude });
+      if (dist < minDistance) {
+        minDistance = dist;
+        nearestIndex = index;
+      }
+    });
+    const nextStop = unvisited.splice(nearestIndex, 1)[0];
+    orderedRoute.push(nextStop);
+    currentPoint = { lat: nextStop.Latitude, lng: nextStop.Longitude };
+
+    const progress = ((totalStops - unvisited.length) / totalStops) * 100;
+    showProgressModal(`Processando parada ${totalStops - unvisited.length} de ${totalStops}...`, progress);
+    await delay(10);
+  }
+
+  deliveryData = orderedRoute.map((d, i) => ({ ...d, Sequence: i + 1 }));
+  isRouteOptimized = true;
+
+  hideProgressModal();
+  showToast(`Rota otimizada com ${deliveryData.length} entregas!`, 'success');
+
+  saveState();
+  updateUI();
+  startTracking();
+
   setTimeout(() => {
-    // ... (todo o código de otimização dentro do setTimeout permanece o mesmo) ...
-    
-    let currentStartPoint = startPoint;
-    if (document.getElementById('useCurrentLocationStart').checked && userLocation) {
-      currentStartPoint = userLocation;
-    }
-    if (!currentStartPoint) {
-      currentStartPoint = { lat: deliveryData[0].Latitude, lng: deliveryData[0].Longitude };
-      showToast('Nenhum ponto de partida definido. Iniciando da primeira entrega.', 'info');
-    }
-
-    deliveryData.forEach(d => d.status = "pendente");
-
-    let unvisited = [...deliveryData];
-    let orderedRoute = [];
-    let currentPoint = currentStartPoint;
-
-    while (unvisited.length > 0) {
-        let nearestIndex = -1;
-        let minDistance = Infinity;
-        unvisited.forEach((stop, index) => {
-            const dist = haversine(currentPoint, {lat: stop.Latitude, lng: stop.Longitude});
-            if (dist < minDistance) {
-                minDistance = dist;
-                nearestIndex = index;
-            }
-        });
-        const nextStop = unvisited.splice(nearestIndex, 1)[0];
-        orderedRoute.push(nextStop);
-        currentPoint = {lat: nextStop.Latitude, lng: nextStop.Longitude};
-    }
-    
-    deliveryData = orderedRoute.map((d, i) => ({...d, Sequence: i + 1}));
-    
-    isRouteOptimized = true;
-
-    hideProgressModal();
-    showToast(`Rota otimizada com ${deliveryData.length} entregas!`, 'success');
-    
-    saveState();
-    updateUI();
-    startTracking();
-    
-    setTimeout(() => {
-      if (routeLayer) map.fitBounds(routeLayer.getBounds(), { padding: [50, 50] });
-    }, 1000);
-  }, 2000); // Tempo aumentado para 2 segundos
+    if (routeLayer) map.fitBounds(routeLayer.getBounds(), { padding: [50, 50] });
+  }, 1000);
 }
 
-
 async function reOptimizeFromCurrentLocation() {
-  if (!userLocation) {
-    return showToast('Localização atual não encontrada. Não é possível otimizar.', 'error');
-  }
+  if (!userLocation) return showToast('Localização atual não encontrada.', 'error');
   const pendingDeliveries = deliveryData.filter(d => d.status === 'pendente');
-  if (pendingDeliveries.length < 2) {
-    return showToast('Não há entregas pendentes suficientes para reotimizar.', 'info');
-  }
+  if (pendingDeliveries.length < 2) return showToast('Não há entregas suficientes para reotimizar.', 'info');
 
   if (isRouteOptimized) {
-    // CHAMA O NOVO MODAL PERSONALIZADO
     const confirmed = await showConfirmModal(
       "Rota já otimizada!",
       "Deseja criar uma nova otimização a partir da sua localização atual? A ordem das entregas pendentes será recalculada."
     );
-    if (!confirmed) {
-      return; // Para a execução se o usuário clicar em "Cancelar"
-    }
+    if (!confirmed) return;
   }
 
-  showProgressModal('Reotimizando a partir da sua localização...');
+  showProgressModal('Reotimizando a partir da sua localização...', 0);
+  await delay(50);
 
   // AUMENTANDO O TEMPO PARA 2 SEGUNDOS (2000ms)
   setTimeout(() => {
