@@ -89,7 +89,7 @@
     <div id="confirmModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-[9999] flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl shadow-lg p-6 flex flex-col w-full max-w-sm">
         <div class="flex items-center mb-4">
-        <i class="fas fa-exclamation-triangle text-yellow-500 text-2xl mr-4"></i>
+        <!--<i class="fas fa-exclamation-triangle text-yellow-500 text-2xl mr-4"></i>-->
         <h3 id="confirmTitle" class="text-gray-800 font-bold text-lg">Atenção</h3>
         </div>
         <p id="confirmMessage" class="text-gray-600 text-sm mb-6">Deseja continuar com esta ação?</p>
@@ -494,7 +494,7 @@ async function reOptimizeFromCurrentLocation() {
 
   if (isRouteOptimized) {
     const confirmed = await showConfirmModal(
-      "⚠️ Rota já otimizada!",
+      "⚠️  Rota já otimizada!",
       "Deseja criar uma nova otimização a partir da sua localização atual? A ordem das entregas pendentes será recalculada."
     );
     if (!confirmed) return;
@@ -902,12 +902,24 @@ function showConfirmModal(title, message) {
 // =================================================================================
 // EVENT LISTENERS
 // =================================================================================
-document.getElementById("menuToggleBtn").addEventListener("click", () => toggleMenu());
+document.getElementById("menuToggleBtn").addEventListener("click", () => toggleMenu(true));
 document.getElementById("closeMenuBtn").addEventListener("click", () => toggleMenu(false));
 document.getElementById("menuOverlay").addEventListener("click", () => toggleMenu(false));
 
-document.getElementById("loadNewFileBtn").addEventListener("click", () => {
-    if (confirm('Tem certeza que deseja recomeçar? Todos os dados da rota atual serão perdidos.')) {
+document.getElementById("loadNewFileBtn").addEventListener("click", async () => {
+    // --- SOLUÇÃO: FECHA O MENU ANTES DE MOSTRAR O MODAL ---
+    toggleMenu(false); 
+    
+    // Pequeno delay para garantir que a animação de fechar o menu comece
+    await delay(100); 
+
+    const confirmed = await showConfirmModal(
+        "🚨 Recomeçar Rota",
+        "Tem certeza que deseja carregar um novo arquivo? Todos os dados da rota atual serão perdidos e o sistema será reiniciado."
+    );
+
+    if (confirmed) {
+        showToast('🔄 Reiniciando sistema...', 'info');
         clearState();
     }
 });
