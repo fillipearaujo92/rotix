@@ -41,12 +41,32 @@
       transition: all 0.2s ease;
     }
     .map-floating-btn:hover { transform: scale(1.05); }
-    #menuToggleBtn { top: 20px; left: 20px; }
-    #centerUserBtn { bottom: 200px; right: 20px; }
-    #reOptimizeBtn { bottom: 260px; right: 20px; background: linear-gradient(135deg, #5e33ea, #8b5cf6); color: white; }
+    #menuToggleBtn { top: 20px; left: 20px; box-shadow: 5px 5px 20px rgba(0,0,0,0.5); cursor: pointer;}
+    #centerUserBtn { bottom: 200px; right: 20px; border: 5px solid white; box-shadow: 5px 5px 20px rgba(0,0,0,0.5); cursor: pointer;}
+    #reOptimizeBtn { bottom: 260px; right: 20px; background: linear-gradient(135deg, #5e33ea, #8b5cf6); color: rgb(255, 255, 255); border: 3px solid #eeeeee; box-shadow: 5px 5px 20px rgba(0,0,0,0.5); cursor: pointer;}
     #sideMenu {
         z-index: 9999;
     }
+
+    /* Estilos para o Modal de Progresso */
+#progressModal.hidden {
+  display: none;
+}
+
+/* Animação do Spinner (Loader) */
+.loader {
+  border: 5px solid #f3f3f3; /* Cinza claro */
+  border-top: 5px solid #5e33ea; /* Roxo Rotix */
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
   </style>
 </head>
 <body class="bg-gray-100">
@@ -56,6 +76,29 @@
     <i id="toastIcon" class="fas fa-info-circle mr-3"></i>
     <span id="toastMessage"></span>
   </div>
+
+  <!-- Modal de Progresso da Otimização -->
+    <div id="progressModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-lg p-8 flex flex-col items-center space-y-4 w-64">
+            <div class="loader"></div>
+            <h3 class="text-gray-700 font-semibold text-lg">Otimizando Rota...</h3>
+            <p id="progressText" class="text-gray-500 text-sm">Calculando distâncias...</p>
+        </div>
+    </div>
+
+    <div id="confirmModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-[9999] flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-lg p-6 flex flex-col w-full max-w-sm">
+        <div class="flex items-center mb-4">
+        <i class="fas fa-exclamation-triangle text-yellow-500 text-2xl mr-4"></i>
+        <h3 id="confirmTitle" class="text-gray-800 font-bold text-lg">Atenção</h3>
+        </div>
+        <p id="confirmMessage" class="text-gray-600 text-sm mb-6">Deseja continuar com esta ação?</p>
+        <div class="flex justify-end space-x-3">
+        <button id="confirmCancelBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-5 rounded-lg transition-colors">Cancelar</button>
+        <button id="confirmOkBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-lg transition-colors">OK</button>
+        </div>
+    </div>
+    </div>
 
   <!-- Botões Flutuantes do Mapa -->
   <button id="menuToggleBtn" class="map-floating-btn hidden">
@@ -69,52 +112,36 @@
   </button>
 
   <!-- Menu Lateral -->
-  <div id="menuOverlay" class="hidden fixed inset-0 bg-black bg-opacity-40 z-4000"></div>
-  <div id="sideMenu" class="hidden fixed top-0 left-0 w-full max-w-sm h-full bg-white shadow-2xl z-5000 p-6 overflow-y-auto transform -translate-x-full transition-transform duration-300">
-    <div class="flex justify-between items-center mb-6">
-      <h4 class="font-semibold text-gray-800 text-lg"><i class="fas fa-list mr-2"></i>Lista de Entregas</h4>
-      <button id="closeMenuBtn" class="text-gray-500 hover:text-red-500"><i class="fas fa-times text-xl"></i></button>
-    </div>
-    
-    <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-      <h5 class="font-medium text-red-800 mb-2"><i class="fas fa-exclamation-triangle mr-2"></i>Recomeçar Rota</h5>
-      <p class="text-sm text-red-600 mb-3">Isso apagará a rota atual e voltará ao início.</p>
-      <button id="loadNewFileBtn" class="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition"><i class="fas fa-file-upload mr-2"></i>Carregar Novo Arquivo</button>
-    </div>
-
-    <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-      <h5 class="font-medium text-blue-800 mb-2"><i class="fas fa-cogs mr-2"></i>Configurações de Rota</h5>
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-700 mb-2">Ponto de Partida:</label>
-        <div class="flex items-center mb-2">
-          <input type="checkbox" id="useCurrentLocationStart" class="h-4 w-4 text-indigo-600 border-gray-300 rounded"/>
-          <label for="useCurrentLocationStart" class="ml-2 block text-sm text-gray-900">Usar localização atual</label>
-        </div>
-        <textarea id="startAddress" placeholder="Opcional: Digite um endereço de partida" class="w-full p-2 border border-gray-300 rounded-md text-sm" rows="2"></textarea>
-        <button id="geocodeStartBtn" class="mt-2 w-full bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"><i class="fas fa-search mr-1"></i>Buscar Endereço</button>
-      </div>
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-700 mb-2">Ponto de Término:</label>
-        <textarea id="endAddress" placeholder="Opcional: Digite um endereço de término" class="w-full p-2 border border-gray-300 rounded-md text-sm" rows="2"></textarea>
-        <button id="geocodeEndBtn" class="mt-2 w-full bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"><i class="fas fa-search mr-1"></i>Buscar Endereço</button>
-      </div>
-      <button id="optimizeInMenuBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition"><i class="fas fa-route mr-2"></i>Otimizar Rota</button>
-    </div>
-    
-    <div class="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
-      <h5 class="font-medium text-indigo-800 mb-2"><i class="fas fa-chart-bar mr-2"></i>Estatísticas</h5>
-      <div id="routeStats" class="text-sm text-indigo-700"></div>
-    </div>
-    
-    <div id="routeList"></div>
+<div id="menuOverlay" class="hidden fixed inset-0 bg-black bg-opacity-40 z-4000"></div>
+<div id="sideMenu" class="hidden fixed top-0 left-0 w-full max-w-sm h-full bg-white shadow-2xl z-5000 p-6 overflow-y-auto transform -translate-x-full transition-transform duration-300">
+  <div class="flex justify-between items-center mb-6">
+    <h4 class="font-semibold text-gray-800 text-lg"><i class="fas fa-list mr-2"></i>Lista de Entregas</h4>
+    <button id="closeMenuBtn" class="text-gray-500 hover:text-red-500"><i class="fas fa-times text-xl"></i></button>
   </div>
+  
+  <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+    <h5 class="font-medium text-red-800 mb-2"><i class="fas fa-exclamation-triangle mr-2"></i>Recomeçar Rota</h5>
+    <p class="text-sm text-red-600 mb-3">Isso apagará a rota atual e voltará ao início.</p>
+    <button id="loadNewFileBtn" class="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition"><i class="fas fa-file-upload mr-2"></i>Carregar Novo Arquivo</button>
+  </div>
+
+  <!-- SEÇÃO DE CONFIGURAÇÕES DE ROTA FOI REMOVIDA -->
+  
+  <div class="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+    <h5 class="font-medium text-indigo-800 mb-2"><i class="fas fa-chart-bar mr-2"></i>Estatísticas</h5>
+    <div id="routeStats" class="text-sm text-indigo-700"></div>
+  </div>
+  
+  <div id="routeList"></div>
+</div>
+
 
   <!-- Etapa 1: Upload -->
   <div id="step1" class="flex-1 flex flex-col items-center justify-center p-6 min-h-screen">
     <div class="bg-white rounded-2xl shadow-lg p-10 w-full max-w-md text-center">
-      <div class="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-[var(--rotix-blue)] to-purple-600 rounded-3xl flex items-center justify-center">
-        <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13v-6m0-6V4a2 2 0 012-2h2a2 2 0 012 2v3m-6 10h6m-6-6h6m6-3l-5.447-2.724A1 1 0 0015 5.618v10.764a1 1 0 001.447.894L21 15m0-8v6m0 6V4a2 2 0 00-2-2h-2a2 2 0 00-2 2v3"></path></svg>
-      </div>
+      <div class="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-[var(--rotix-blue)] to-purple-800 rounded-3xl flex items-center justify-center">
+        <img src="img/logo.svg" width="45">
+        </div>
       <h1 class="text-4xl font-bold tracking-widest text-gray-800">Rotix</h1>
       <h3 class="text-xs tracking-widest text-gray-500 mb-8">Inteligência em movimento</h3>
       <label for="fileInput" class="cursor-pointer block border-2 border-dashed border-indigo-400 rounded-xl p-10 hover:bg-indigo-50 transition">
@@ -142,17 +169,17 @@
   <div class="w-full max-w-4xl mx-auto">
     <div class="flex justify-between items-start mb-3">
       <div id="nextStopInfo" class="text-gray-800 mr-4"></div>
-      <button onclick="document.getElementById('nextStopBar').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 flex-shrink-0"><i class="fas fa-times"></i></button>
+      <!--<button onclick="document.getElementById('nextStopBar').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 flex-shrink-0"><i class="fas fa-times"></i></button>-->
     </div>
     <div class="grid grid-cols-3 gap-3">
-      <button onclick="openNavigation()" class="col-span-1 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center text-sm"><i class="fas fa-diamond-turn-right mr-2"></i>Navegar</button>
+      <button onclick="openNavigation()" class="col-span-1 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center text-xs"><i class="fas fa-diamond-turn-right mr-2"></i>Navegar</button>
       
       <!-- BOTÕES COM IDs ADICIONADOS -->
-      <button id="naoEntregueBtn" onclick="markNext('naoentregue')" class="col-span-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg flex items-center justify-center text-sm">
+      <button id="naoEntregueBtn" onclick="markNext('naoentregue')" class="col-span-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg flex items-center justify-center text-xs">
         <i class="fas fa-box mr-2 text-red-500"></i>
         <span id="naoEntregueText">Não Entregue</span>
       </button>
-      <button id="entregueBtn" onclick="markNext('entregue')" class="col-span-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg flex items-center justify-center text-sm">
+      <button id="entregueBtn" onclick="markNext('entregue')" class="col-span-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg flex items-center justify-center text-xs">
         <i class="fas fa-check-double mr-2 text-green-500"></i>
         <span id="entregueText">Entregue</span>
       </button>
@@ -170,6 +197,7 @@ let deliveryData = [], userLocation = null, map, markers = [], routeLayer, nextD
 let selectedColumns = [];
 let startPoint = null;
 let endPoint = null;
+let isRouteOptimized = false;
 
 // =================================================================================
 // INICIALIZAÇÃO E GERENCIAMENTO DE ESTADO
@@ -352,94 +380,121 @@ async function geocodeAddress(address) {
 function optimizeRoute() {
   if (deliveryData.length === 0) return showToast('Nenhuma entrega para otimizar', 'warn');
 
-  let currentStartPoint = startPoint;
-  if (document.getElementById('useCurrentLocationStart').checked && userLocation) {
-    currentStartPoint = userLocation;
-  }
-  if (!currentStartPoint) {
-    currentStartPoint = { lat: deliveryData[0].Latitude, lng: deliveryData[0].Longitude };
-    showToast('Nenhum ponto de partida definido. Iniciando da primeira entrega.', 'info');
-  }
+  showProgressModal('Iniciando otimização...');
 
-  showToast('Otimizando rota...', 'info');
-  deliveryData.forEach(d => d.status = "pendente");
-
-  let unvisited = [...deliveryData];
-  let orderedRoute = [];
-  let currentPoint = currentStartPoint;
-
-  while (unvisited.length > 0) {
-      let nearestIndex = -1;
-      let minDistance = Infinity;
-      unvisited.forEach((stop, index) => {
-          const dist = haversine(currentPoint, {lat: stop.Latitude, lng: stop.Longitude});
-          if (dist < minDistance) {
-              minDistance = dist;
-              nearestIndex = index;
-          }
-      });
-      const nextStop = unvisited.splice(nearestIndex, 1)[0];
-      orderedRoute.push(nextStop);
-      currentPoint = {lat: nextStop.Latitude, lng: nextStop.Longitude};
-  }
-  
-  deliveryData = orderedRoute.map((d, i) => ({...d, Sequence: i + 1}));
-  
-  showToast(`Rota otimizada com ${deliveryData.length} entregas!`, 'success');
-  saveState();
-  updateUI();
-  startTracking();
-  
+  // AUMENTANDO O TEMPO PARA 2 SEGUNDOS (2000ms)
   setTimeout(() => {
-    if (routeLayer) map.fitBounds(routeLayer.getBounds(), { padding: [50, 50] });
-  }, 1000);
+    // ... (todo o código de otimização dentro do setTimeout permanece o mesmo) ...
+    
+    let currentStartPoint = startPoint;
+    if (document.getElementById('useCurrentLocationStart').checked && userLocation) {
+      currentStartPoint = userLocation;
+    }
+    if (!currentStartPoint) {
+      currentStartPoint = { lat: deliveryData[0].Latitude, lng: deliveryData[0].Longitude };
+      showToast('Nenhum ponto de partida definido. Iniciando da primeira entrega.', 'info');
+    }
+
+    deliveryData.forEach(d => d.status = "pendente");
+
+    let unvisited = [...deliveryData];
+    let orderedRoute = [];
+    let currentPoint = currentStartPoint;
+
+    while (unvisited.length > 0) {
+        let nearestIndex = -1;
+        let minDistance = Infinity;
+        unvisited.forEach((stop, index) => {
+            const dist = haversine(currentPoint, {lat: stop.Latitude, lng: stop.Longitude});
+            if (dist < minDistance) {
+                minDistance = dist;
+                nearestIndex = index;
+            }
+        });
+        const nextStop = unvisited.splice(nearestIndex, 1)[0];
+        orderedRoute.push(nextStop);
+        currentPoint = {lat: nextStop.Latitude, lng: nextStop.Longitude};
+    }
+    
+    deliveryData = orderedRoute.map((d, i) => ({...d, Sequence: i + 1}));
+    
+    isRouteOptimized = true;
+
+    hideProgressModal();
+    showToast(`Rota otimizada com ${deliveryData.length} entregas!`, 'success');
+    
+    saveState();
+    updateUI();
+    startTracking();
+    
+    setTimeout(() => {
+      if (routeLayer) map.fitBounds(routeLayer.getBounds(), { padding: [50, 50] });
+    }, 1000);
+  }, 2000); // Tempo aumentado para 2 segundos
 }
 
-function reOptimizeFromCurrentLocation() {
+
+async function reOptimizeFromCurrentLocation() {
   if (!userLocation) {
     return showToast('Localização atual não encontrada. Não é possível otimizar.', 'error');
   }
-
   const pendingDeliveries = deliveryData.filter(d => d.status === 'pendente');
   if (pendingDeliveries.length < 2) {
     return showToast('Não há entregas pendentes suficientes para reotimizar.', 'info');
   }
 
-  showToast('Reotimizando rota a partir de sua localização...', 'info');
-
-  let unvisited = [...pendingDeliveries];
-  let reorderedRoute = [];
-  let currentPoint = userLocation;
-
-  while (unvisited.length > 0) {
-      let nearestIndex = -1;
-      let minDistance = Infinity;
-      
-      unvisited.forEach((stop, index) => {
-          const dist = haversine(currentPoint, {lat: stop.Latitude, lng: stop.Longitude});
-          if (dist < minDistance) {
-              minDistance = dist;
-              nearestIndex = index;
-          }
-      });
-      
-      const nextStop = unvisited.splice(nearestIndex, 1)[0];
-      reorderedRoute.push(nextStop);
-      currentPoint = {lat: nextStop.Latitude, lng: nextStop.Longitude};
+  if (isRouteOptimized) {
+    // CHAMA O NOVO MODAL PERSONALIZADO
+    const confirmed = await showConfirmModal(
+      "Rota já otimizada!",
+      "Deseja criar uma nova otimização a partir da sua localização atual? A ordem das entregas pendentes será recalculada."
+    );
+    if (!confirmed) {
+      return; // Para a execução se o usuário clicar em "Cancelar"
+    }
   }
 
-  const completedDeliveries = deliveryData.filter(d => d.status !== 'pendente');
-  const finalRoute = [...completedDeliveries, ...reorderedRoute];
-  deliveryData = finalRoute.map((d, i) => ({...d, Sequence: i + 1 }));
+  showProgressModal('Reotimizando a partir da sua localização...');
 
-  showToast('Rota reotimizada com sucesso!', 'success');
-  saveState();
-  updateUI();
-
+  // AUMENTANDO O TEMPO PARA 2 SEGUNDOS (2000ms)
   setTimeout(() => {
-    if (routeLayer) map.fitBounds(routeLayer.getBounds(), { padding: [50, 50] });
-  }, 1000);
+    let unvisited = [...pendingDeliveries];
+    let reorderedRoute = [];
+    let currentPoint = userLocation;
+
+    while (unvisited.length > 0) {
+        let nearestIndex = -1;
+        let minDistance = Infinity;
+        unvisited.forEach((stop, index) => {
+            const dist = haversine(currentPoint, {lat: stop.Latitude, lng: stop.Longitude});
+            if (dist < minDistance) {
+                minDistance = dist;
+                nearestIndex = index;
+            }
+        });
+        const nextStop = unvisited.splice(nearestIndex, 1)[0];
+        reorderedRoute.push(nextStop);
+        currentPoint = {lat: nextStop.Latitude, lng: nextStop.Longitude};
+    }
+
+    const completedDeliveries = deliveryData.filter(d => d.status !== 'pendente');
+    const finalRoute = [...completedDeliveries, ...reorderedRoute];
+    deliveryData = finalRoute.map((d, i) => ({...d, Sequence: i + 1 }));
+
+    isRouteOptimized = true;
+    
+    hideProgressModal();
+    showToast('Rota reotimizada com sucesso!', 'success');
+    
+    saveState();
+    updateUI();
+
+    setTimeout(() => {
+      if (routeLayer) map.fitBounds(routeLayer.getBounds(), { padding: [50, 50] });
+    }, 1000);
+  }, 2000); // Tempo aumentado para 2 segundos
 }
+
 
 async function drawRoute(points, options) {
   if (points.length < 2) return null;
@@ -587,8 +642,6 @@ function markNext(status) {
   }
 }
 
-
-
 function updateStats() {
   const total = deliveryData.length;
   const entregues = deliveryData.filter(d => d.status === 'entregue').length;
@@ -639,8 +692,6 @@ function updateSideList() {
           </div>`;
     }).join('');
 }
-
-
 
 // =================================================================================
 // AÇÕES DO USUÁRIO E EVENTOS
@@ -707,14 +758,14 @@ function showMapControls(show) {
 function toggleMenu(force = null) {
   const sideMenu = document.getElementById("sideMenu");
   const menuOverlay = document.getElementById("menuOverlay");
-  const optimizeInMenuBtn = document.getElementById("optimizeInMenuBtn");
+  // A linha 'optimizeInMenuBtn' foi removida
   const isOpen = !sideMenu.classList.contains("hidden");
   const shouldOpen = force !== null ? force : !isOpen;
   if (shouldOpen) {
     sideMenu.classList.remove("hidden");
     menuOverlay.classList.remove("hidden");
     setTimeout(() => sideMenu.classList.remove("-translate-x-full"), 10);
-    optimizeInMenuBtn.classList.remove('hidden');
+    // A linha 'optimizeInMenuBtn' foi removida
   } else {
     sideMenu.classList.add("-translate-x-full");
     menuOverlay.classList.add("hidden");
@@ -753,56 +804,65 @@ function showToast(message, type = 'info') {
   setTimeout(() => { toast.classList.remove('show'); }, 3000);
 }
 
+function showConfirmModal(title, message) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('confirmModal');
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmMessage').innerHTML = message; // Usamos innerHTML para permitir quebras de linha com   
+
+
+    modal.classList.remove('hidden');
+
+    const okBtn = document.getElementById('confirmOkBtn');
+    const cancelBtn = document.getElementById('confirmCancelBtn');
+
+    const close = (decision) => {
+      modal.classList.add('hidden');
+      // Remove os event listeners para evitar múltiplos cliques em futuras chamadas
+      okBtn.onclick = null;
+      cancelBtn.onclick = null;
+      resolve(decision);
+    };
+
+    okBtn.onclick = () => close(true);
+    cancelBtn.onclick = () => close(false);
+  });
+}
+
 // =================================================================================
 // EVENT LISTENERS
 // =================================================================================
 document.getElementById("menuToggleBtn").addEventListener("click", () => toggleMenu());
 document.getElementById("closeMenuBtn").addEventListener("click", () => toggleMenu(false));
 document.getElementById("menuOverlay").addEventListener("click", () => toggleMenu(false));
+
 document.getElementById("loadNewFileBtn").addEventListener("click", () => {
     if (confirm('Tem certeza que deseja recomeçar? Todos os dados da rota atual serão perdidos.')) {
         clearState();
     }
 });
-document.getElementById("optimizeInMenuBtn").addEventListener("click", () => {
-    toggleMenu(false);
-    optimizeRoute();
-});
+
+// --- OUVINTES DE EVENTOS CORRETOS PARA OS BOTÕES FLUTUANTES ---
 document.getElementById('reOptimizeBtn').addEventListener('click', reOptimizeFromCurrentLocation);
+
 document.getElementById('centerUserBtn').addEventListener('click', () => {
-    if (userLocation) map.setView(userLocation, 16);
+    if (userLocation) {
+        map.setView(userLocation, 16);
+        showToast('📍 Centralizado na sua localização', 'info');
+    } else {
+        showToast('Localização não disponível', 'warn');
+    }
 });
 
-async function setupPoint(type) {
-    const addressInput = document.getElementById(`${type}Address`);
-    showToast('Buscando endereço...', 'info');
-    const result = await geocodeAddress(addressInput.value.trim());
-    
-    if (result) {
-        if (type === 'start') startPoint = result;
-        else endPoint = result;
-        addressInput.value = result.address;
-        showToast('Endereço encontrado!', 'success');
-        saveState();
-    } else {
-        showToast('Endereço não encontrado.', 'error');
-    }
+// Funções para controlar o modal de progresso
+function showProgressModal(text) {
+  document.getElementById('progressText').textContent = text;
+  document.getElementById('progressModal').classList.remove('hidden');
 }
 
-document.getElementById('geocodeStartBtn').addEventListener('click', () => setupPoint('start'));
-document.getElementById('geocodeEndBtn').addEventListener('click', () => setupPoint('end'));
-
-document.getElementById('useCurrentLocationStart').addEventListener('change', (e) => {
-  if (e.target.checked && userLocation) {
-    startPoint = { ...userLocation, address: 'Localização Atual' };
-    document.getElementById('startAddress').value = 'Localização Atual';
-    saveState();
-  } else {
-      startPoint = null;
-      document.getElementById('startAddress').value = '';
-      saveState();
-  }
-});
+function hideProgressModal() {
+  document.getElementById('progressModal').classList.add('hidden');
+}
 
 </script>
 </body>
