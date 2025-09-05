@@ -220,13 +220,15 @@ function saveState() {
       selectedColumns: selectedColumns,
       startPoint: startPoint,
       endPoint: endPoint,
-      currentStep: getCurrentStep()
+      currentStep: getCurrentStep(),
+      isRouteOptimized: isRouteOptimized // <-- ADICIONAR ESTA LINHA
     };
     localStorage.setItem('routeOptimizerState', JSON.stringify(stateToSave));
   } catch (e) { console.error('Erro ao salvar estado:', e); }
 }
 
-function loadSavedState() {
+
+async function loadSavedState() { // <-- TORNAR A FUNÇÃO ASYNC
   const savedState = localStorage.getItem('routeOptimizerState');
   if (!savedState) return;
   try {
@@ -236,15 +238,30 @@ function loadSavedState() {
       selectedColumns = state.selectedColumns || [];
       startPoint = state.startPoint;
       endPoint = state.endPoint;
-      
-      if (startPoint) document.getElementById('startAddress').value = startPoint.address || '';
-      if (endPoint) document.getElementById('endAddress').value = endPoint.address || '';
+      isRouteOptimized = state.isRouteOptimized || false; // <-- RESTAURAR O ESTADO DE OTIMIZAÇÃO
 
       document.getElementById('step1').classList.add('hidden');
       document.getElementById('step3').classList.remove('hidden');
       
       showMapControls(true);
+      await initGeolocation(); // Espera a geolocalização para ter o userLocation
       initMap();
+
+      // --- SOLUÇÃO: DESENHA A ROTA COMPLETA AO RECARREGAR ---
+      if (isRouteOptimized) {
+        if (routeLayer) map.removeLayer(routeLayer);
+        const allPoints = deliveryData.map(d => ({ lat: +d.Latitude, lng: +d.Longitude }));
+        if (userLocation) allPoints.unshift(userLocation); // Adiciona a localização atual ao traçado
+        
+        routeLayer = await drawRoute(allPoints, { style: { color: "#5e33ea", weight: 5, opacity: 0.7 } });
+        if (routeLayer) {
+          routeLayer.addTo(map);
+          // Ajusta o zoom para a rota completa
+          setTimeout(() => map.fitBounds(routeLayer.getBounds(), { padding: [50, 50] }), 500);
+        }
+      }
+      // --- FIM DA SOLUÇÃO ---
+
       updateUI();
       startTracking();
       showToast('Rota anterior restaurada!', 'success');
@@ -254,6 +271,7 @@ function loadSavedState() {
     clearState();
   }
 }
+
 
 function clearState() {
   localStorage.removeItem('routeOptimizerState');
@@ -356,14 +374,27 @@ document.getElementById('confirmColumnsBtn')?.addEventListener('click', () => {
 // GEOLOCALIZAÇÃO E GEOCODIFICAÇÃO (Nominatim/OSM)
 // =================================================================================
 function initGeolocation() {
-    navigator.geolocation.getCurrentPosition(
-        pos => { userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude }; },
+  return new Promise((resolve) => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => { 
+          userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          resolve();
+        },
         () => { 
             userLocation = { lat: -3.73186, lng: -38.5267 }; // Fallback
             showToast('Usando localização padrão. Permita o acesso para maior precisão.', 'warn');
+            resolve();
         }
-    );
+      );
+    } else {
+      userLocation = { lat: -3.73186, lng: -38.5267 }; // Fallback
+      showToast('Geolocalização não suportada por este navegador.', 'error');
+      resolve();
+    }
+  });
 }
+
 
 async function geocodeAddress(address) {
   if (!address) return null;
@@ -386,21 +417,22 @@ async function geocodeAddress(address) {
 
 const delay = ms => new Promise(res => setTimeout(res, ms));
 
+// ADICIONADO 'async' AQUI
 async function optimizeRoute() {
   if (deliveryData.length === 0) return showToast('Nenhuma entrega para otimizar', 'warn');
+
+  const optimizeBtn = document.getElementById('reOptimizeBtn');
+  optimizeBtn.disabled = true;
+  optimizeBtn.classList.add('opacity-50', 'cursor-not-allowed');
 
   showProgressModal('Iniciando otimização...', 0);
   await delay(50);
 
-  // --- CORREÇÃO APLICADA AQUI ---
-  // Removemos a verificação do checkbox e usamos a localização do usuário como padrão.
   let currentStartPoint = userLocation;
   if (!currentStartPoint) {
-    // Se a localização do usuário não estiver disponível, usa a primeira entrega como fallback.
     currentStartPoint = { lat: deliveryData[0].Latitude, lng: deliveryData[0].Longitude };
     showToast('Localização não encontrada. Iniciando da primeira entrega.', 'warn');
   }
-  // --- FIM DA CORREÇÃO ---
 
   deliveryData.forEach(d => d.status = "pendente");
 
@@ -434,15 +466,27 @@ async function optimizeRoute() {
   hideProgressModal();
   showToast(`Rota otimizada com ${deliveryData.length} entregas!`, 'success');
 
+  if (routeLayer) map.removeLayer(routeLayer); // Limpa a rota antiga se existir
+  const allPoints = deliveryData.map(d => ({ lat: +d.Latitude, lng: +d.Longitude }));
+  // Adiciona o ponto de partida ao início para o traçado
+  if (userLocation) allPoints.unshift(userLocation);
+  
+  routeLayer = await drawRoute(allPoints, { style: { color: "#5e33ea", weight: 5, opacity: 0.7 } });
+  if (routeLayer) routeLayer.addTo(map);
+
+  optimizeBtn.disabled = false;
+  optimizeBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+
   saveState();
   updateUI();
   startTracking();
 
   setTimeout(() => {
     if (routeLayer) map.fitBounds(routeLayer.getBounds(), { padding: [50, 50] });
-  }, 1000);
+  }, 500);
 }
 
+// ADICIONADO 'async' AQUI
 async function reOptimizeFromCurrentLocation() {
   if (!userLocation) return showToast('Localização atual não encontrada.', 'error');
   const pendingDeliveries = deliveryData.filter(d => d.status === 'pendente');
@@ -450,52 +494,69 @@ async function reOptimizeFromCurrentLocation() {
 
   if (isRouteOptimized) {
     const confirmed = await showConfirmModal(
-      "Rota já otimizada!",
+      "⚠️ Rota já otimizada!",
       "Deseja criar uma nova otimização a partir da sua localização atual? A ordem das entregas pendentes será recalculada."
     );
     if (!confirmed) return;
   }
 
+  const optimizeBtn = document.getElementById('reOptimizeBtn');
+  optimizeBtn.disabled = true;
+  optimizeBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
   showProgressModal('Reotimizando a partir da sua localização...', 0);
   await delay(50);
 
-  // AUMENTANDO O TEMPO PARA 2 SEGUNDOS (2000ms)
+  let unvisited = [...pendingDeliveries];
+  let reorderedRoute = [];
+  let currentPoint = userLocation;
+  const totalStops = unvisited.length;
+
+  while (unvisited.length > 0) {
+    let nearestIndex = -1;
+    let minDistance = Infinity;
+    unvisited.forEach((stop, index) => {
+      const dist = haversine(currentPoint, { lat: stop.Latitude, lng: stop.Longitude });
+      if (dist < minDistance) {
+        minDistance = dist;
+        nearestIndex = index;
+      }
+    });
+    const nextStop = unvisited.splice(nearestIndex, 1)[0];
+    reorderedRoute.push(nextStop);
+    currentPoint = { lat: nextStop.Latitude, lng: nextStop.Longitude };
+
+    const progress = ((totalStops - unvisited.length) / totalStops) * 100;
+    showProgressModal(`Processando parada ${totalStops - unvisited.length} de ${totalStops}...`, progress);
+    await delay(10);
+  }
+
+  const completedDeliveries = deliveryData.filter(d => d.status !== 'pendente');
+  const finalRoute = [...completedDeliveries, ...reorderedRoute];
+  deliveryData = finalRoute.map((d, i) => ({ ...d, Sequence: i + 1 }));
+  isRouteOptimized = true;
+
+  hideProgressModal();
+  showToast('Rota reotimizada com sucesso!', 'success');
+
+  if (routeLayer) map.removeLayer(routeLayer);
+  const allPoints = deliveryData
+    .filter(d => d.status === 'pendente') // Pega apenas as pendentes para o novo traçado
+    .map(d => ({ lat: +d.Latitude, lng: +d.Longitude }));
+  if (userLocation) allPoints.unshift(userLocation);
+
+  routeLayer = await drawRoute(allPoints, { style: { color: "#5e33ea", weight: 5, opacity: 0.7 } });
+  if (routeLayer) routeLayer.addTo(map);
+
+  optimizeBtn.disabled = false;
+  optimizeBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+  saveState();
+  updateUI();
+
   setTimeout(() => {
-    let unvisited = [...pendingDeliveries];
-    let reorderedRoute = [];
-    let currentPoint = userLocation;
-
-    while (unvisited.length > 0) {
-        let nearestIndex = -1;
-        let minDistance = Infinity;
-        unvisited.forEach((stop, index) => {
-            const dist = haversine(currentPoint, {lat: stop.Latitude, lng: stop.Longitude});
-            if (dist < minDistance) {
-                minDistance = dist;
-                nearestIndex = index;
-            }
-        });
-        const nextStop = unvisited.splice(nearestIndex, 1)[0];
-        reorderedRoute.push(nextStop);
-        currentPoint = {lat: nextStop.Latitude, lng: nextStop.Longitude};
-    }
-
-    const completedDeliveries = deliveryData.filter(d => d.status !== 'pendente');
-    const finalRoute = [...completedDeliveries, ...reorderedRoute];
-    deliveryData = finalRoute.map((d, i) => ({...d, Sequence: i + 1 }));
-
-    isRouteOptimized = true;
-    
-    hideProgressModal();
-    showToast('Rota reotimizada com sucesso!', 'success');
-    
-    saveState();
-    updateUI();
-
-    setTimeout(() => {
-      if (routeLayer) map.fitBounds(routeLayer.getBounds(), { padding: [50, 50] });
-    }, 1000);
-  }, 2000); // Tempo aumentado para 2 segundos
+    if (routeLayer) map.fitBounds(routeLayer.getBounds(), { padding: [50, 50] });
+  }, 1000);
 }
 
 
@@ -536,17 +597,11 @@ function updateUI() {
 }
 
 async function updateRouteLines() {
-    if (routeLayer) map.removeLayer(routeLayer);
+    // Limpa APENAS a rota da próxima entrega anterior
     if (nextDeliveryRouteLayer) map.removeLayer(nextDeliveryRouteLayer);
 
-    const allPoints = [
-        startPoint || userLocation,
-        ...deliveryData.map(d => ({ lat: +d.Latitude, lng: +d.Longitude })),
-        ...(endPoint ? [endPoint] : [])
-    ].filter(Boolean);
-
-    routeLayer = await drawRoute(allPoints, { style: { color: "#5e33ea", weight: 5, opacity: 0.7 } });
-    if (routeLayer) routeLayer.addTo(map);
+    // A lógica da rota completa (routeLayer) foi movida para as funções de otimização.
+    // Esta função agora é mais leve e só cuida da rota dinâmica para a próxima parada.
 
     const nextDelivery = deliveryData.find(d => d.status === "pendente");
     if (nextDelivery && userLocation) {
@@ -555,6 +610,8 @@ async function updateRouteLines() {
         if (nextDeliveryRouteLayer) nextDeliveryRouteLayer.addTo(map);
     }
 }
+
+
 
 function updateMarkers() {
   if (!map) return;
