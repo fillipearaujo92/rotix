@@ -1,5 +1,6 @@
 
 
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -146,6 +147,76 @@
         transform: translateY(-50%) scale(1.1) !important;
     }
 
+    /* Barra de navegação estilo Waze/Uber */
+    #navigationBar {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+
+    .navigation-direction {
+      width: 60px;
+      height: 60px;
+      background: rgba(255,255,255,0.2);
+      border: 3px solid white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: white;
+      flex-shrink: 0;
+    }
+
+    .navigation-info {
+      flex-grow: 1;
+      color: white;
+    }
+
+    .navigation-distance {
+      font-size: 2.5rem;
+      font-weight: 800;
+      line-height: 1;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .navigation-instruction {
+      font-size: 1.1rem;
+      font-weight: 500;
+      opacity: 0.95;
+      margin-top: 4px;
+    }
+
+    /* Barra inferior estilo Waze */
+    #navigationFooter {
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+    }
+
+    /* Indicador de direção do usuário */
+    .user-direction-arrow {
+      position: relative;
+    }
+
+    .user-direction-arrow::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-bottom: 15px solid #3b82f6;
+      transform: translate(-50%, -50%) rotate(var(--user-heading, 0deg));
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    }
+
+    /* Animações para transições suaves */
+    .navigation-transition {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
   </style>
 </head>
 <body class="bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-white">
@@ -154,6 +225,50 @@
   <div id="toast" class="toast">
     <i id="toastIcon" class="fas fa-info-circle mr-3"></i>
     <span id="toastMessage"></span>
+  </div>
+
+  <!-- Barra de navegação turn-by-turn (estilo Waze/Uber) -->
+  <div id="navigationBar" class="hidden fixed top-0 left-0 right-0 z-[1002] p-4">
+    <div class="flex items-center space-x-4">
+      <!-- Ícone de direção -->
+      <div id="directionIcon" class="navigation-direction">
+        <i class="fas fa-arrow-up"></i>
+      </div>
+      
+      <!-- Informações de navegação -->
+      <div class="navigation-info flex-1">
+        <div id="navigationDistance" class="navigation-distance">--</div>
+        <div id="navigationInstruction" class="navigation-instruction">Iniciando navegação...</div>
+      </div>
+
+      <!-- Botão de cancelar -->
+      <button id="cancelNavigationBtn" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white p-3 rounded-full transition-colors">
+        <i class="fas fa-times text-xl"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Barra inferior de navegação -->
+  <div id="navigationFooter" class="hidden fixed bottom-0 left-0 right-0 z-[1001] p-4">
+    <div class="flex justify-between items-center text-gray-800">
+      <!-- Informações da entrega atual -->
+      <div class="flex-1">
+        <div class="text-sm font-medium" id="navDeliveryInfo">Entrega #1</div>
+        <div class="text-xs text-gray-600" id="navDeliveryAddress">Carregando endereço...</div>
+      </div>
+      
+      <!-- Tempo estimado -->
+      <div class="text-center px-4">
+        <div class="text-lg font-bold text-blue-600" id="navETA">--min</div>
+        <div class="text-xs text-gray-600">Tempo</div>
+      </div>
+      
+      <!-- Distância restante -->
+      <div class="text-center">
+        <div class="text-lg font-bold text-green-600" id="navTotalDistance">--km</div>
+        <div class="text-xs text-gray-600">Restante</div>
+      </div>
+    </div>
   </div>
 
   <!-- Modal de Progresso da Otimização -->
@@ -201,11 +316,11 @@
 
   <!-- NOVO: Modal de Configurações -->
   <div id="settingsModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-[9999] flex items-center justify-center p-4">
-      <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 flex flex-col w-full max-w-md">
-          <div class="flex justify-between items-center mb-6">
-              <h3 class="text-gray-800 font-bold text-lg dark:text-white"><i class="fas fa-cog mr-2"></i>Configurações</h3>
-              <button id="closeSettingsBtn" class="text-gray-500 hover:text-red-500"><i class="fas fa-times text-xl"></i></button>
-          </div>
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 flex flex-col w-full max-w-md">
+      <div class="flex justify-between items-center mb-6">
+          <h3 class="text-gray-800 font-bold text-lg dark:text-white"><i class="fas fa-cog mr-2"></i>Configurações</h3>
+          <button id="closeSettingsBtn" class="text-gray-500 hover:text-red-500"><i class="fas fa-times text-xl"></i></button>
+      </div>
 
           <div class="space-y-6">
               <!-- Seção de Navegação -->
@@ -232,8 +347,8 @@
                 <legend class="text-sm font-semibold text-gray-900 dark:text-gray-200">Comportamento da Rota</legend>
                 
                 <div class="mt-4 space-y-4">
-                  <div class="flex items-center justify-between">
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Retornar ao Ponto Inicial</span>
+                  <div class="mt-2 flex items-center justify-between p-3 rounded-lg">
+                        <span class="text-gray-700 dark:text-gray-300">Retornar ao Ponto Inicial</span>
                         <button id="returnToStartToggle" type="button" class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none bg-gray-200" role="switch" aria-checked="false">
                             <span class="sr-only">Ativar retorno ao ponto inicial</span>
                             <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-0"></span>
@@ -262,7 +377,20 @@
                         <span aria-hidden="true" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-0 dark:translate-x-5"></span>
                     </button>
                 </div>
-            </div>
+                <div class="mt-2 flex items-center justify-between p-3 rounded-lg">
+                    <span class="text-gray-800 dark:text-gray-200">Manter tela ligada</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" id="wakeLockToggle" class="sr-only peer">
+                      <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer
+                                  peer-checked:bg-indigo-600
+                                  after:content-[''] after:absolute after:top-[2px] after:left-[2px]
+                                  after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all
+                                  peer-checked:after:translate-x-full peer-checked:after:border-white">
+                      </div>
+                    </label>
+                  </div>
+
+                </div>
                     
                 </div>
               </div>
@@ -378,6 +506,14 @@ let endPoint = null;
 let isRouteOptimized = false;
 let markerClusterGroup;
 let mapTileLayer;
+
+// Variáveis para navegação turn-by-turn
+let currentRoute = null;
+let currentStepIndex = 0;
+let navigationSteps = [];
+let isNavigating = false;
+let lastUserHeading = 0;
+let navigationWatchId = null;
 
 const iconMapping = {
   'cliente': 'fa-user',
@@ -1484,7 +1620,7 @@ function markNext(status) {
   }
 }
 
-function openNavigation() {
+/*function openNavigation() {
     const next = deliveryData.find(d => d.status === "pendente");
     if (next) {
         const navApp = localStorage.getItem('navApp') || 'google';
@@ -1500,17 +1636,99 @@ function openNavigation() {
         
         window.open(url, '_blank' );
     }
+}*/
+
+function openNavigation() {
+    const next = deliveryData.find(d => d.status === "pendente");
+    if (!next) return;
+
+    // Pergunta se quer usar navegação interna ou externa
+    showNavigationChoice(next);
 }
 
+async function showNavigationChoice(delivery) {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-60 z-[9999] flex items-center justify-center p-4';
+    modal.innerHTML = `
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 w-full max-w-sm">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-route text-blue-600 dark:text-blue-400 text-2xl"></i>
+                </div>
+                <h3 class="text-lg font-bold text-gray-800 dark:text-white mb-2">Escolha o tipo de navegação</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-300">Como deseja navegar até a próxima entrega?</p>
+            </div>
+            
+            <div class="space-y-3">
+                <button id="internalNavBtn" class="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center transition-all">
+                    <i class="fas fa-compass mr-3"></i>
+                    Navegação Interna (Roday)
+                </button>
+                
+                <button id="externalNavBtn" class="w-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center transition-all">
+                    <i class="fas fa-external-link-alt mr-3"></i>
+                    Aplicativo Externo
+                </button>
+                
+                <button id="cancelNavChoice" class="w-full bg-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 font-medium py-2 transition-colors">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Event listeners
+    modal.querySelector('#internalNavBtn').addEventListener('click', () => {
+        document.body.removeChild(modal);
+        startInternalNavigation(delivery);
+    });
+
+    modal.querySelector('#externalNavBtn').addEventListener('click', () => {
+        document.body.removeChild(modal);
+        openExternalNavigation(delivery);
+    });
+
+    modal.querySelector('#cancelNavChoice').addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+
+    // Fechar clicando fora
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            document.body.removeChild(modal);
+        }
+    });
+}
+
+function openExternalNavigation(delivery) {
+    const navApp = localStorage.getItem('navApp') || 'google';
+    let url;
+
+    if (navApp === 'waze') {
+        url = `https://www.waze.com/ul?ll=${delivery.Latitude},${delivery.Longitude}&navigate=yes`;
+    } else if (navApp === 'apple') {
+        url = `http://maps.apple.com/?daddr=${delivery.Latitude},${delivery.Longitude}`;
+    } else {
+        url = `https://www.google.com/maps/dir/?api=1&destination=${delivery.Latitude},${delivery.Longitude}`;
+    }
+    
+    window.open(url, '_blank');
+}
 
 function startTracking() {
   if (!navigator.geolocation) return;
+  
+  // Se já está navegando, não inicia o tracking normal
+  if (isNavigating) return;
+  
   const watchOptions = { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 };
-
   let lastVibrationTime = 0;
 
   navigator.geolocation.watchPosition(pos => {
     userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    
     if (!userMarker) {
       const pulseIcon = L.divIcon({
         className: "",
@@ -1525,14 +1743,12 @@ function startTracking() {
     if (nextDelivery) {
       const distanceToNext = haversine(userLocation, { lat: +nextDelivery.Latitude, lng: +nextDelivery.Longitude });
       const autoZoomEnabled = localStorage.getItem('autoZoom') !== 'false';
+      
       if (autoZoomEnabled && distanceToNext < 0.5) {
         const bounds = L.latLngBounds([userLocation, { lat: +nextDelivery.Latitude, lng: +nextDelivery.Longitude }]);
         map.fitBounds(bounds, { padding: [80, 80], maxZoom: 17 });
       }
-      if (distanceToNext < 0.5) {
-        const bounds = L.latLngBounds([userLocation, { lat: +nextDelivery.Latitude, lng: +nextDelivery.Longitude }]);
-        map.fitBounds(bounds, { padding: [80, 80], maxZoom: 17 });
-      }
+      
       const now = Date.now();
       if (distanceToNext < 0.1 && (now - lastVibrationTime > 30000)) {
         if (navigator.vibrate) {
@@ -1542,7 +1758,362 @@ function startTracking() {
         }
       }
     }
-  }, () => { showToast("Não foi possível obter sua localização em tempo real.", "error"); }, watchOptions);
+  }, () => { 
+    showToast("Não foi possível obter sua localização em tempo real.", "error"); 
+  }, watchOptions);
+}
+
+// =================================================================================
+// SISTEMA DE NAVEGAÇÃO TURN-BY-TURN
+// =================================================================================
+
+async function startInternalNavigation(delivery) {
+    if (!userLocation) {
+        showToast('Localização não disponível para navegação', 'error');
+        return;
+    }
+
+    isNavigating = true;
+    showToast('Iniciando navegação...', 'info');
+    
+    // Busca a rota com instruções detalhadas
+    const routeData = await fetchDetailedRoute(userLocation, {
+        lat: delivery.Latitude,
+        lng: delivery.Longitude
+    });
+
+    if (!routeData) {
+        showToast('Não foi possível calcular a rota', 'error');
+        return;
+    }
+
+    // Configura a navegação
+    currentRoute = routeData.routes[0];
+    navigationSteps = currentRoute.legs[0].steps;
+    currentStepIndex = 0;
+
+    // Mostra as barras de navegação
+    showNavigationUI(delivery);
+    
+    // Oculta controles normais
+    hideNormalUI();
+    
+    // Ajusta o mapa para navegação
+    setupNavigationMap();
+    
+    // Inicia o rastreamento de navegação
+    startNavigationTracking();
+    
+    // Atualiza a primeira instrução
+    updateNavigationDisplay();
+}
+
+async function fetchDetailedRoute(from, to) {
+    const coords = `${from.lng},${from.lat};${to.lng},${to.lat}`;
+    const url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson&steps=true&annotations=true`;
+    
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        return await response.json();
+    } catch (error) {
+        console.error('Erro ao buscar rota detalhada:', error);
+        return null;
+    }
+}
+
+function showNavigationUI(delivery) {
+    // Mostra barras de navegação
+    document.getElementById('navigationBar').classList.remove('hidden');
+    document.getElementById('navigationFooter').classList.remove('hidden');
+    
+    // Atualiza informações da entrega
+    const endereco = delivery['Destination Address'] || delivery['Endereço'] || 'Endereço não disponível';
+    document.getElementById('navDeliveryInfo').textContent = `Entrega #${delivery.STOP}`;
+    document.getElementById('navDeliveryAddress').textContent = endereco;
+    
+    // Calcula tempo e distância estimados
+    const totalDistance = (currentRoute.distance / 1000).toFixed(1);
+    const totalTime = Math.round(currentRoute.duration / 60);
+    
+    document.getElementById('navETA').textContent = `${totalTime}min`;
+    document.getElementById('navTotalDistance').textContent = `${totalDistance}km`;
+}
+
+function hideNormalUI() {
+    // Oculta a barra de próxima parada
+    document.getElementById('nextStopBar').classList.add('hidden');
+    
+    // Oculta alguns botões flutuantes
+    ['settingsBtn', 'reOptimizeBtn'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+    });
+}
+
+function setupNavigationMap() {
+    // Zoom mais próximo para navegação
+    map.setZoom(18);
+    
+    // Centro na localização do usuário
+    map.setView(userLocation, 18);
+    
+    // Desenha apenas a rota para o destino atual
+    if (nextDeliveryRouteLayer) map.removeLayer(nextDeliveryRouteLayer);
+    if (routeLayer) map.removeLayer(routeLayer);
+    
+    // Desenha a rota de navegação
+    const routeGeometry = currentRoute.geometry;
+    nextDeliveryRouteLayer = L.geoJSON(routeGeometry, {
+        style: { color: "#ff6b35", weight: 8, opacity: 0.9 }
+    }).addTo(map);
+}
+
+function startNavigationTracking() {
+    const options = {
+        enableHighAccuracy: true,
+        timeout: 5000,
+        maximumAge: 1000
+    };
+
+    navigationWatchId = navigator.geolocation.watchPosition(
+        position => updateNavigationPosition(position),
+        error => console.error('Erro de navegação:', error),
+        options
+    );
+}
+
+function updateNavigationPosition(position) {
+    const newLocation = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude
+    };
+
+    // Atualiza localização global
+    userLocation = newLocation;
+    
+    // Atualiza marcador do usuário com direção
+    updateUserMarkerWithDirection(position);
+    
+    // Verifica se precisa avançar para próxima instrução
+    checkNavigationProgress(newLocation);
+    
+    // Atualiza display de navegação
+    updateNavigationDisplay();
+    
+    // Mantém mapa centrado no usuário
+    map.setView(newLocation, map.getZoom());
+}
+
+function updateUserMarkerWithDirection(position) {
+    const heading = position.coords.heading || lastUserHeading;
+    if (heading !== null) lastUserHeading = heading;
+
+    const directionIcon = L.divIcon({
+        className: "",
+        html: `
+            <div class="user-direction-arrow w-8 h-8 bg-blue-500 rounded-full border-4 border-white shadow-lg flex items-center justify-center" 
+                 style="--user-heading: ${heading || 0}deg">
+                <div class="w-2 h-2 bg-white rounded-full"></div>
+            </div>
+        `,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+    });
+
+    if (userMarker) {
+        userMarker.setLatLng([userLocation.lat, userLocation.lng]);
+        userMarker.setIcon(directionIcon);
+    } else {
+        userMarker = L.marker([userLocation.lat, userLocation.lng], { icon: directionIcon }).addTo(map);
+    }
+}
+
+function checkNavigationProgress(currentPosition) {
+    if (currentStepIndex >= navigationSteps.length) return;
+
+    const currentStep = navigationSteps[currentStepIndex];
+    const stepEndLocation = currentStep.maneuver.location;
+    
+    // Calcula distância até o fim da instrução atual
+    const distanceToStepEnd = haversine(currentPosition, {
+        lat: stepEndLocation[1],
+        lng: stepEndLocation[0]
+    });
+
+    // Se chegou perto da próxima manobra (30 metros)
+    if (distanceToStepEnd < 0.03) {
+        currentStepIndex++;
+        
+        // Vibra para indicar nova instrução
+        if (navigator.vibrate && currentStepIndex < navigationSteps.length) {
+            navigator.vibrate([100, 50, 100]);
+        }
+        
+        updateNavigationDisplay();
+    }
+}
+
+function updateNavigationDisplay() {
+    if (currentStepIndex >= navigationSteps.length) {
+        // Chegou ao destino
+        finishNavigation();
+        return;
+    }
+
+    const currentStep = navigationSteps[currentStepIndex];
+    const maneuver = currentStep.maneuver;
+    
+    // Atualiza ícone de direção
+    const directionIcon = getDirectionIcon(maneuver.type, maneuver.modifier);
+    document.getElementById('directionIcon').innerHTML = `<i class="fas ${directionIcon}"></i>`;
+    
+    // Atualiza distância para próxima manobra
+    const stepEndLocation = maneuver.location;
+    const distanceToTurn = haversine(userLocation, {
+        lat: stepEndLocation[1],
+        lng: stepEndLocation[0]
+    });
+    
+    // Formata distância
+    let distanceText;
+    if (distanceToTurn < 0.1) { // Menos de 100m
+        distanceText = Math.round(distanceToTurn * 1000) + 'm';
+    } else if (distanceToTurn < 1) { // Menos de 1km
+        distanceText = Math.round(distanceToTurn * 1000 / 50) * 50 + 'm'; // Arredonda para 50m
+    } else {
+        distanceText = distanceToTurn.toFixed(1) + 'km';
+    }
+    
+    document.getElementById('navigationDistance').textContent = distanceText;
+    
+    // Atualiza instrução
+    const instruction = getNavigationInstruction(maneuver.type, maneuver.modifier, currentStep.name);
+    document.getElementById('navigationInstruction').textContent = instruction;
+    
+    // Atualiza distância total restante
+    const remainingSteps = navigationSteps.slice(currentStepIndex);
+    const totalRemainingDistance = remainingSteps.reduce((sum, step) => sum + step.distance, 0) / 1000;
+    document.getElementById('navTotalDistance').textContent = totalRemainingDistance.toFixed(1) + 'km';
+    
+    // Atualiza tempo restante (estimativa simples)
+    const remainingTime = Math.round(remainingSteps.reduce((sum, step) => sum + step.duration, 0) / 60);
+    document.getElementById('navETA').textContent = remainingTime + 'min';
+}
+
+function getDirectionIcon(maneuverType, modifier) {
+    const iconMap = {
+        'turn': {
+            'left': 'fa-arrow-turn-left',
+            'right': 'fa-arrow-turn-right',
+            'sharp left': 'fa-arrow-turn-left',
+            'sharp right': 'fa-arrow-turn-right',
+            'slight left': 'fa-arrow-up-left',
+            'slight right': 'fa-arrow-up-right'
+        },
+        'new name': 'fa-arrow-up',
+        'depart': 'fa-arrow-up',
+        'arrive': 'fa-flag-checkered',
+        'merge': 'fa-code-merge',
+        'ramp': 'fa-arrow-up',
+        'on ramp': 'fa-arrow-up-right',
+        'off ramp': 'fa-arrow-down-right',
+        'fork': 'fa-code-fork',
+        'end of road': 'fa-arrow-turn-right',
+        'continue': 'fa-arrow-up',
+        'roundabout': 'fa-circle-notch',
+        'rotary': 'fa-circle-notch',
+        'roundabout turn': 'fa-circle-notch'
+    };
+
+    if (iconMap[maneuverType] && typeof iconMap[maneuverType] === 'object') {
+        return iconMap[maneuverType][modifier] || 'fa-arrow-up';
+    }
+    
+    return iconMap[maneuverType] || 'fa-arrow-up';
+}
+
+function getNavigationInstruction(maneuverType, modifier, streetName) {
+    const instructions = {
+        'turn': {
+            'left': 'Vire à esquerda',
+            'right': 'Vire à direita',
+            'sharp left': 'Vire acentuadamente à esquerda',
+            'sharp right': 'Vire acentuadamente à direita',
+            'slight left': 'Mantenha-se ligeiramente à esquerda',
+            'slight right': 'Mantenha-se ligeiramente à direita'
+        },
+        'new name': 'Continue em frente',
+        'depart': 'Siga em frente',
+        'arrive': 'Você chegou ao destino!',
+        'merge': 'Entre na via',
+        'on ramp': 'Pegue a entrada',
+        'off ramp': 'Pegue a saída',
+        'fork': 'Na bifurcação',
+        'end of road': 'No final da via, vire',
+        'continue': 'Continue em frente',
+        'roundabout': 'Na rotatória',
+        'rotary': 'Na rotatória'
+    };
+
+    let baseInstruction = 'Siga em frente';
+    
+    if (instructions[maneuverType] && typeof instructions[maneuverType] === 'object') {
+        baseInstruction = instructions[maneuverType][modifier] || instructions[maneuverType].default || baseInstruction;
+    } else if (instructions[maneuverType]) {
+        baseInstruction = instructions[maneuverType];
+    }
+
+    // Adiciona nome da rua se disponível
+    if (streetName && streetName !== '') {
+        if (maneuverType === 'arrive') {
+            return baseInstruction;
+        }
+        return `${baseInstruction} na ${streetName}`;
+    }
+
+    return baseInstruction;
+}
+
+function finishNavigation() {
+    showToast('🎯 Chegou ao destino!', 'success');
+    
+    // Vibração de chegada
+    if (navigator.vibrate) {
+        navigator.vibrate([200, 100, 200, 100, 200]);
+    }
+    
+    stopNavigation();
+}
+
+function stopNavigation() {
+    isNavigating = false;
+    
+    // Para o rastreamento de navegação
+    if (navigationWatchId) {
+        navigator.geolocation.clearWatch(navigationWatchId);
+        navigationWatchId = null;
+    }
+    
+    // Oculta UI de navegação
+    document.getElementById('navigationBar').classList.add('hidden');
+    document.getElementById('navigationFooter').classList.add('hidden');
+    
+    // Mostra UI normal novamente
+    document.getElementById('nextStopBar').classList.remove('hidden');
+    ['settingsBtn', 'reOptimizeBtn'].forEach(id => {
+        document.getElementById(id).classList.remove('hidden');
+    });
+    
+    // Volta o zoom normal
+    map.setZoom(15);
+    
+    // Redesenha todas as rotas
+    updateUI();
+    
+    // Limpa variáveis de navegação
+    currentRoute = null;
+    navigationSteps = [];
+    currentStepIndex = 0;
 }
 
 // Função auxiliar que apenas busca os dados da rota
@@ -2158,6 +2729,62 @@ function updateSideList() {
     // Inicializa o Sortable após criar os elementos
     initializeSortable();
 }
+
+let wakeLock = null;
+
+async function requestWakeLock() {
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => {
+      console.log('Wake Lock liberado');
+      showToast('A tela pode apagar novamente.', 'info');
+    });
+    console.log('Wake Lock ativo');
+    showToast('Tela mantida ligada.', 'success');
+  } catch (err) {
+    console.error(`${err.name}, ${err.message}`);
+    showToast('Falha ao ativar manter tela ligada.', 'error');
+  }
+}
+
+function releaseWakeLock() {
+  if (wakeLock) {
+    wakeLock.release();
+    wakeLock = null;
+    showToast('A tela pode apagar novamente.', 'info');
+  }
+}
+
+const wakeLockToggle = document.getElementById('wakeLockToggle');
+
+// 🔹 Restaurar estado salvo ao carregar
+const savedWakeLock = localStorage.getItem('wakeLockEnabled') === 'true';
+wakeLockToggle.checked = savedWakeLock;
+if (savedWakeLock) requestWakeLock();
+
+// 🔹 Alterar e salvar estado
+wakeLockToggle.addEventListener('change', async (e) => {
+  const enabled = e.target.checked;
+  localStorage.setItem('wakeLockEnabled', enabled);
+  if (enabled) {
+    await requestWakeLock();
+  } else {
+    releaseWakeLock();
+  }
+});
+
+// 🔹 Se a aba perder foco e voltar, reativa se estava ligado
+document.addEventListener('visibilitychange', async () => {
+  if (wakeLock !== null && document.visibilityState === 'visible') {
+    await requestWakeLock();
+  }
+});
+
+// Listener para cancelar navegação
+document.getElementById('cancelNavigationBtn').addEventListener('click', () => {
+    stopNavigation();
+    showToast('Navegação cancelada', 'info');
+});
 
 </script>
 </body>
