@@ -5,10 +5,11 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-  <title>Rotix - Otimizador de Rotas</title>
+  <title>Roday - Otimizador de Rotas</title>
   <link rel="icon" type="image/png" href="img/favicon.png">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
@@ -23,9 +24,10 @@
   </script>
 
   <style>
-    :root { --rotix-blue: #5e33ea; }
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap' );
-    body { font-family: 'Inter', sans-serif; }
+    :root { --Roday-blue: #5e33ea; }
+
+    @import url('https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,600;1,600&display=swap');
+    
     #map { height: 100vh; }
     .leaflet-control-zoom, .leaflet-control-attribution { display: none !important; }
     .leaflet-popup-content-wrapper { border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
@@ -64,8 +66,13 @@
       color: #f7fafc;            /* texto claro */
     }
 
+    .dark #menuToggleBtn {
+      background-color: #4F45E4; /* cinza escuro */
+      color: #f7fafc;            /* texto claro */
+    }
+
     .map-floating-btn:hover { transform: scale(1.05); }
-    #menuToggleBtn { top: 20px; left: 20px; border: 3px solid white; box-shadow: 5px 5px 20px rgba(0,0,0,0.5); cursor: pointer;}
+    #menuToggleBtn { top: 20px; left: 20px; box-shadow: 5px 5px 20px rgba(0,0,0,0.5); cursor: pointer;}
     #settingsBtn { bottom: 250px; right: 20px; border: 3px solid white; box-shadow: 5px 5px 20px rgba(0,0,0,0.5); cursor: pointer; }    
     #reOptimizeBtn { bottom: 430px; right: 20px; border: 3px solid white; box-shadow: 5px 5px 20px rgba(0,0,0,0.5); cursor: pointer;}
     #centerUserBtn { bottom: 370px; right: 20px; border: 3px solid white; box-shadow: 5px 5px 20px rgba(0,0,0,0.5); cursor: pointer;}
@@ -88,7 +95,7 @@
     /* Animação do Spinner (Loader) */
     .loader {
       border: 5px solid #f3f3f3; /* Cinza claro */
-      border-top: 5px solid #5e33ea; /* Roxo Rotix */
+      border-top: 5px solid #5e33ea; /* Roxo Roday */
       border-radius: 50%;
       width: 50px;
       height: 50px;
@@ -98,6 +105,45 @@
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
+    }
+
+    /* Classes específicas para o Sortable */
+    .sortable-chosen {
+        transform: scale(1.05) rotate(2deg) !important;
+        z-index: 1000;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+    }
+
+    .sortable-ghost {
+        opacity: 0.4 !important;
+        background: #f3f4f6 !important;
+        border: 2px dashed #d1d5db !important;
+    }
+
+    .sortable-drag {
+        transform: rotate(5deg) !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.4) !important;
+    }
+
+    .route-item {
+      position: relative;
+      transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+      touch-action: pan-y;
+      user-select: none;
+      overflow: visible;
+    }
+
+    .route-item:hover {
+        transform: translateY(-2px);
+    }
+
+    .delete-button {
+        transition: opacity 0.2s ease !important;
+    }
+
+    .delete-button:hover {
+        background: #dc2626 !important;
+        transform: translateY(-50%) scale(1.1) !important;
     }
 
   </style>
@@ -199,12 +245,6 @@
                         <textarea id="endAddress" placeholder="Digite o endereço de término" class="mt-1 w-full p-2 border border-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-md text-sm" rows="2"></textarea>
                         <button id="geocodeEndBtn" class="mt-2 w-full bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"><i class="fas fa-search mr-1"></i>Buscar Endereço</button>
                     </div>
-                    <!-- NOVO: Tempo de Serviço -->
-                    <div>
-                        <label for="serviceTimeInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tempo de Serviço por Parada (minutos)</label>
-                        <input type="number" id="serviceTimeInput" value="5" class="mt-1 block w-full p-2 border border-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-md shadow-sm">
-                        <p class="text-xs text-gray-500 mt-1">Adiciona um tempo fixo a cada parada para uma estimativa de duração mais precisa.</p>
-                    </div>
                 </div>
             </fieldset>
 
@@ -223,15 +263,7 @@
                     </button>
                 </div>
             </div>
-                    <!-- NOVO: Tema do Mapa -->
-                    <div>
-                        <label for="mapThemeSelect" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tema do Mapa</label>
-                        <select id="mapThemeSelect" class="mt-1 block w-full p-2 border border-gray-300 dark:bg-gray-700 dark:border-gray-600 rounded-md shadow-sm">
-                            <option value="voyager">Claro (Padrão)</option>
-                            <option value="dark_matter">Escuro</option>
-                            <option value="hybrid">Satélite com Ruas</option>
-                        </select>
-                    </div>
+                    
                 </div>
               </div>
           </div>
@@ -254,9 +286,13 @@
     </div>
 
     <!-- SEÇÃO DE CONFIGURAÇÕES DE ROTA FOI REMOVIDA -->
-    <div class="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
-      <h5 class="font-medium text-indigo-800 mb-2"><i class="fas fa-chart-bar mr-2"></i>Estatísticas</h5>
-      <div id="routeStats" class="text-sm text-indigo-700"></div>
+    <div class="mb-6 p-4 rounded-lg border 
+            bg-indigo-50 border-indigo-200 text-indigo-700
+            dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100">
+      <h5 class="font-medium mb-2 text-indigo-800 dark:text-indigo-300">
+        <i class="fas fa-chart-bar mr-2"></i>Estatísticas
+      </h5>
+      <div id="routeStats" class="text-sm"></div>
     </div>
     
     <div class="flex justify-between items-center mb-6">
@@ -269,10 +305,10 @@
   <!-- Etapa 1: Upload -->
   <div id="step1" class="flex-1 flex flex-col items-center justify-center p-6 min-h-screen">
     <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-10 w-full max-w-md text-center">
-      <div class="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-[var(--rotix-blue)] to-purple-800 rounded-3xl flex items-center justify-center">
+      <div class="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-[var(--Roday-blue)] to-purple-800 rounded-3xl flex items-center justify-center">
         <img src="img/logo.svg" width="45">
         </div>
-      <h1 class="text-4xl font-bold tracking-widest text-gray-800 dark:text-white">Rotix</h1>
+      <h1 class="text-4xl font-bold tracking-widest text-gray-800 dark:text-white font-logo">Roday</h1>
       <h3 class="text-xs tracking-widest text-gray-500 dark:text-white mb-8">Inteligência em movimento</h3>
       <label for="fileInput" class="cursor-pointer block border-2 border-dashed border-indigo-400 rounded-xl p-10 hover:bg-indigo-50 transition">
         <i class="fas fa-file-excel text-4xl text-indigo-500 mb-4 block"></i>
@@ -308,19 +344,20 @@
             </div>
             <!-- MODIFICAÇÃO: grid-cols-3 para grid-cols-4 e adição do botão Pendente -->
             <div class="grid grid-cols-4 gap-2">
-                <button onclick="openNavigation()" class="col-span-1 bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center text-xs"><i class="fas fa-diamond-turn-right mr-2"></i>Navegar</button>
+                <button onclick="openNavigation()" class="col-span-1 bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center text-xs dark:bg-gray-800 dark:text-white dark:border-2 dark:border-solid dark:border-indigo-600 dark:hover:bg-indigo-900">
+                  <i class="fas fa-diamond-turn-right mr-2 dark:text-indigo-500"></i>Navegar</button>
                 
-                <button id="entregueBtn" onclick="markNext('entregue')" class="col-span-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg flex items-center justify-center text-xs">
+                <button id="entregueBtn" onclick="markNext('entregue')" class="col-span-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg flex items-center justify-center text-xs dark:bg-gray-800 dark:text-white dark:border-2 dark:border-solid dark:border-green-600 dark:hover:bg-green-900">
                     <i class="fas fa-check-double mr-2 text-green-500"></i>
                     <span id="entregueText">Entregue</span>
                 </button>
 
-                <button id="naoEntregueBtn" onclick="markNext('naoentregue')" class="col-span-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg flex items-center justify-center text-xs">
+                <button id="naoEntregueBtn" onclick="markNext('naoentregue')" class="col-span-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg flex items-center justify-center text-xs dark:bg-gray-800 dark:text-white dark:border-2 dark:border-solid dark:border-red-600 dark:hover:bg-red-900">
                     <i class="fas fa-box mr-2 text-red-500"></i>
                     <span id="naoEntregueText">Não Entregue</span>
                 </button>
                 
-                <button onclick="markNext('pendente')" class="col-span-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg flex items-center justify-center text-xs">
+                <button onclick="markNext('pendente')" class="col-span-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg flex items-center justify-center text-xs dark:bg-gray-800 dark:text-white dark:border-2 dark:border-solid dark:border-yellow-600 dark:hover:bg-yellow-900">
                     <i class="fas fa-clock mr-2 text-yellow-500"></i>
                     <span id="pendenteText">Pendente</span>
                 </button>
@@ -1159,35 +1196,32 @@ function updateMapTheme() {
         map.removeLayer(mapTileLayer);
     }
 
-    const theme = localStorage.getItem('mapTheme') || 'voyager';
+    // Detecta se o tema da interface está em modo escuro
+    const isDarkMode = document.documentElement.classList.contains('dark');
+    
     let url, attribution;
 
-    switch (theme) {
-        case 'dark_matter':
-            url = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-            attribution = '&copy; OpenStreetMap &copy; CARTO';
-            break;
-        case 'hybrid':
-            url = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'; // Você pode substituir por um tile de satélite melhor
-            attribution = '&copy; OpenStreetMap contributors';
-            break;
-        default: // 'voyager'
-            url = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-            attribution = '&copy; OpenStreetMap &copy; CARTO';
+    if (isDarkMode) {
+        // Tema escuro do mapa
+        url = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+        attribution = '&copy; OpenStreetMap &copy; CARTO';
+    } else {
+        // Tema claro do mapa
+        url = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+        attribution = '&copy; OpenStreetMap &copy; CARTO';
     }
 
-    mapTileLayer = L.tileLayer(url, { attribution, maxZoom: 19 } );
+    mapTileLayer = L.tileLayer(url, { attribution, maxZoom: 19 });
     mapTileLayer.addTo(map);
 }
 
 // Modifique a função initMap para usar a nova função de tema
 function initMap() {
   if (!map) {
-    map = L.map('map', { zoomControl: false }).setView(userLocation || [-3.73, -38.52], 13);
-    updateMapTheme(); // Usa a função de tema para inicializar
+      map = L.map('map', { zoomControl: false }).setView(userLocation || [-3.73, -38.52], 13);
+      updateMapTheme(); // Usa a função de tema para inicializar
   }
 }
-
 
 function updateUI() {
   if (!map) initMap();
@@ -1375,15 +1409,29 @@ function updateStats() {
   
   document.getElementById('routeStats').innerHTML = `
     <div class="space-y-2">
-      <div class="flex justify-between"><span>Total:</span><span class="font-semibold">${total}</span></div>
-      <div class="flex justify-between text-green-600"><span>Entregues:</span><span class="font-semibold">${entregues}</span></div>
-      <div class="flex justify-between text-red-600"><span>Não Entregues:</span><span class="font-semibold">${naoEntregues}</span></div>
-      <div class="flex justify-between text-yellow-600"><span>Pendentes:</span><span class="font-semibold">${pendentes}</span></div>
-      <div class="mt-3 pt-2 border-t border-indigo-200">
-        <div class="flex justify-between mb-1"><span class="text-sm font-medium">Progresso:</span><span class="text-sm font-semibold">${progress}%</span></div>
-        <div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-indigo-600 h-2.5 rounded-full" style="width: ${progress}%"></div></div>
+      <div class="flex justify-between">
+        <span>Total:</span><span class="font-semibold text-indigo-600 dark:text-indigo-300">${total}</span>
+      </div>
+      <div class="flex justify-between">
+        <span>Entregues:</span><span class="font-semibold text-green-600 dark:text-green-400">${entregues}</span>
+      </div>
+      <div class="flex justify-between">
+        <span>Não Entregues:</span><span class="font-semibold text-red-600 dark:text-red-400">${naoEntregues}</span>
+      </div>
+      <div class="flex justify-between">
+        <span>Pendentes:</span><span class="font-semibold text-yellow-600 dark:text-yellow-400">${pendentes}</span>
+      </div>
+      <div class="mt-3 pt-2 border-t border-indigo-200 dark:border-gray-700">
+        <div class="flex justify-between mb-1">
+          <span class="text-sm font-medium">Progresso:</span>
+          <span class="text-sm font-semibold">${progress}%</span>
+        </div>
+        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+          <div class="bg-indigo-600 dark:bg-indigo-400 h-2.5 rounded-full" style="width: ${progress}%"></div>
+        </div>
       </div>
     </div>`;
+
 }
 
 function updateSideList() {
@@ -1717,38 +1765,40 @@ document.getElementById("fullscreenBtn").addEventListener("click", () => {
 
 // Função para sincronizar a aparência do switch com o tema atual
 function syncThemeSwitch() {
-  const html = document.documentElement;
-  const toggle = document.getElementById('themeToggleSwitch');
-  const knob = toggle.querySelector('span[aria-hidden="true"]');
+    const html = document.documentElement;
+    const toggle = document.getElementById('themeToggleSwitch');
+    const knob = toggle.querySelector('span[aria-hidden="true"]');
 
-  if (html.classList.contains('dark')) {
-    toggle.classList.remove('bg-gray-200');
-    toggle.classList.add('bg-indigo-600');
-    knob.classList.remove('translate-x-0');
-    knob.classList.add('translate-x-5');
-    toggle.setAttribute('aria-checked', 'true');
-  } else {
-    toggle.classList.remove('bg-indigo-600');
-    toggle.classList.add('bg-gray-200');
-    knob.classList.remove('translate-x-5');
-    knob.classList.add('translate-x-0');
-    toggle.setAttribute('aria-checked', 'false');
-  }
+    if (html.classList.contains('dark')) {
+        toggle.classList.remove('bg-gray-200');
+        toggle.classList.add('bg-indigo-600');
+        knob.classList.remove('translate-x-0');
+        knob.classList.add('translate-x-5');
+        toggle.setAttribute('aria-checked', 'true');
+    } else {
+        toggle.classList.remove('bg-indigo-600');
+        toggle.classList.add('bg-gray-200');
+        knob.classList.remove('translate-x-5');
+        knob.classList.add('translate-x-0');
+        toggle.setAttribute('aria-checked', 'false');
+    }
 }
 
 // Listener para o novo switch de tema
 document.getElementById("themeToggleSwitch").addEventListener("click", () => {
-  const html = document.documentElement;
-  if (html.classList.contains("dark")) {
-    html.classList.remove("dark");
-    localStorage.setItem("theme", "light");
-    showToast("☀️ Tema claro ativado", "info");
-  } else {
-    html.classList.add("dark");
-    localStorage.setItem("theme", "dark");
-    showToast("🌙 Tema escuro ativado", "info");
-  }
-  syncThemeSwitch(); // Sincroniza o visual do switch após a mudança
+    const html = document.documentElement;
+    if (html.classList.contains("dark")) {
+        html.classList.remove("dark");
+        localStorage.setItem("theme", "light");
+        showToast("☀️ Tema claro ativado", "info");
+    } else {
+        html.classList.add("dark");
+        localStorage.setItem("theme", "dark");
+        showToast("🌙 Tema escuro ativado", "info");
+    }
+    
+    syncThemeSwitch(); // Sincroniza o visual do switch após a mudança
+    updateMapTheme(); // 🎯 ADICIONE ESTA LINHA para atualizar o mapa
 });
 
 // Restaurar tema e sincronizar switch ao carregar a página
@@ -1757,29 +1807,41 @@ if (localStorage.getItem("theme") === "dark") {
 }
 // Chama a sincronização após um pequeno delay para garantir que tudo foi carregado
 document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(syncThemeSwitch, 100);
+    // Restaurar tema salvo
+    if (localStorage.getItem("theme") === "dark") {
+        document.documentElement.classList.add("dark");
+    }
+    
+    // Sincronizar switch e mapa após um pequeno delay
+    setTimeout(() => {
+        syncThemeSwitch();
+        if (map) {
+            updateMapTheme(); // Atualiza o mapa se ele já estiver inicializado
+        }
+    }, 100);
 });
+
+function toggleTheme() {
+    const html = document.documentElement;
+    if (html.classList.contains("dark")) {
+        html.classList.remove("dark");
+        localStorage.setItem("theme", "light");
+    } else {
+        html.classList.add("dark");
+        localStorage.setItem("theme", "dark");
+    }
+    
+    syncThemeSwitch();
+    updateMapTheme(); // Sempre atualiza o mapa junto
+}
 
 // --- NOVOS LISTENERS PARA AS NOVAS CONFIGURAÇÕES ---
 document.getElementById("settingsBtn").addEventListener("click", () => {
   // Carrega as configurações salvas antes de mostrar
   document.getElementById('navAppSelect').value = localStorage.getItem('navApp') || 'google';
-  document.getElementById('serviceTimeInput').value = localStorage.getItem('serviceTime') || '5';
-  document.getElementById('mapThemeSelect').value = localStorage.getItem('mapTheme') || 'voyager';
   syncThemeSwitch();
   
   document.getElementById('settingsModal').classList.remove('hidden');
-});
-
-document.getElementById('serviceTimeInput').addEventListener('input', (e) => {
-  localStorage.setItem('serviceTime', e.target.value);
-  // Não precisa de toast para não poluir a tela a cada dígito
-});
-
-document.getElementById('mapThemeSelect').addEventListener('change', (e) => {
-  localStorage.setItem('mapTheme', e.target.value);
-  updateMapTheme(); // Chama a nova função para trocar o tema do mapa
-  showToast('Tema do mapa atualizado!', 'success');
 });
 
 // Função para sincronizar o toggle de retorno
@@ -1839,6 +1901,263 @@ document.getElementById('settingsModal').addEventListener('click', (e) => {
 document.getElementById('closeSettingsBtn')?.addEventListener('click', () => {
   document.getElementById('settingsModal').classList.add('hidden');
 });
+
+let sortableInstance = null;
+
+function initializeSortable() {
+    const routeList = document.getElementById('routeList');
+    
+    // Remove instância anterior se existir
+    if (sortableInstance) {
+        sortableInstance.destroy();
+    }
+    
+    sortableInstance = Sortable.create(routeList, {
+        animation: 200,
+        ghostClass: 'sortable-ghost',
+        chosenClass: 'sortable-chosen',
+        dragClass: 'sortable-drag',
+        
+        onStart: function(evt) {
+            evt.item.classList.add('z-50');
+        },
+        
+        onEnd: function(evt) {
+            evt.item.classList.remove('z-50');
+            
+            // Se foi movido para uma nova posição, reordena
+            if (evt.oldIndex !== evt.newIndex) {
+                reorderDeliveries(evt.oldIndex, evt.newIndex);
+            }
+        }
+    });
+    
+    // Adiciona listeners para swipe em dispositivos touch
+    addSwipeListeners();
+}
+
+function addSwipeListeners() {
+    const routeItems = document.querySelectorAll('.route-item');
+    
+    routeItems.forEach(item => {
+        let startX = 0;
+        let isDragging = false;
+        let deleteButton = null;
+        
+        function createDeleteButton() {
+            if (deleteButton) return deleteButton;
+            
+            deleteButton = document.createElement('div');
+            deleteButton.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
+            deleteButton.className = 'delete-button';
+            deleteButton.style.cssText = `
+                position: absolute;
+                right: -60px;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 50px;
+                height: 50px;
+                background: #ef4444;
+                color: white;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 20px;
+                cursor: pointer;
+                z-index: 1000;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                opacity: 0;
+                transition: opacity 0.2s ease;
+            `;
+            
+            deleteButton.addEventListener('click', () => {
+                const deliveryId = parseInt(item.getAttribute('data-delivery-id'));
+                removeDelivery(deliveryId);
+            });
+            
+            item.appendChild(deleteButton);
+            return deleteButton;
+        }
+        
+        function resetItem() {
+            item.style.transform = '';
+            item.style.backgroundColor = '';
+            item.style.borderColor = '';
+            if (deleteButton) {
+                deleteButton.style.opacity = '0';
+                setTimeout(() => {
+                    if (deleteButton && deleteButton.parentNode) {
+                        deleteButton.parentNode.removeChild(deleteButton);
+                        deleteButton = null;
+                    }
+                }, 200);
+            }
+            isDragging = false;
+        }
+        
+        // Mouse events
+        item.addEventListener('mousedown', (e) => {
+            if (e.target.classList.contains('delete-button')) return;
+            startX = e.clientX;
+            isDragging = false;
+            
+            const handleMouseMove = (e) => {
+                const diffX = startX - e.clientX;
+                
+                if (diffX > 20) {
+                    isDragging = true;
+                    const moveDistance = Math.min(diffX, 80);
+                    item.style.transform = `translateX(-45px)`;
+                    item.style.backgroundColor = '#fef2f2';
+                    item.style.borderColor = '#fca5a5';
+                    
+                    if (moveDistance > 30) {
+                        const btn = createDeleteButton();
+                        btn.style.opacity = '1';
+                    }
+                    
+                    e.preventDefault();
+                }
+            };
+            
+            const handleMouseUp = () => {
+                if (!isDragging) {
+                    resetItem();
+                } else if (item.style.transform.includes('translateX')) {
+                    // Mantém a posição para mostrar o botão
+                }
+                
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+            };
+            
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+        });
+        
+        // Touch events
+        item.addEventListener('touchstart', (e) => {
+            if (e.target.classList.contains('delete-button')) return;
+            startX = e.touches[0].clientX;
+            isDragging = false;
+        });
+        
+        item.addEventListener('touchmove', (e) => {
+            const diffX = startX - e.touches[0].clientX;
+            
+            if (diffX > 20) {
+                isDragging = true;
+                const moveDistance = Math.min(diffX, 80);
+                item.style.transform = `translateX(-${moveDistance}px)`;
+                item.style.backgroundColor = '#fef2f2';
+                item.style.borderColor = '#fca5a5';
+                
+                if (moveDistance > 30) {
+                    const btn = createDeleteButton();
+                    btn.style.opacity = '1';
+                }
+                
+                e.preventDefault();
+            }
+        });
+        
+        item.addEventListener('touchend', () => {
+            if (!isDragging) {
+                resetItem();
+            }
+        });
+        
+        // Clique fora para resetar
+        document.addEventListener('click', (e) => {
+            if (!item.contains(e.target)) {
+                resetItem();
+            }
+        });
+    });
+}
+
+function reorderDeliveries(oldIndex, newIndex) {
+    // Remove o item da posição antiga e insere na nova
+    const movedItem = deliveryData.splice(oldIndex, 1)[0];
+    deliveryData.splice(newIndex, 0, movedItem);
+    
+    // Recalcula as sequências
+    deliveryData.forEach((delivery, index) => {
+        delivery.Sequence = index + 1;
+    });
+    
+    showToast(`Parada reordenada para posição ${newIndex + 1}`, 'success');
+    
+    // Salva e atualiza
+    saveState();
+    updateUI();
+}
+
+async function removeDelivery(deliveryId) {
+  toggleMenu(false); 
+    const delivery = deliveryData.find(d => d.id === deliveryId);
+    if (!delivery) return;
+    
+    const confirmed = await showConfirmModal(
+        '🚨  Remover Parada',
+        `Deseja remover a parada "${delivery.STOP}" da rota?<br><br>Esta ação não pode ser desfeita.`
+    );
+    
+    if (confirmed) {
+        // Remove da lista
+        deliveryData = deliveryData.filter(d => d.id !== deliveryId);
+        
+        // Recalcula as sequências
+        deliveryData.forEach((delivery, index) => {
+            delivery.Sequence = index + 1;
+        });
+        
+        showToast(`Parada #${delivery.STOP} removida da rota`, 'warn');
+        
+        // Salva e atualiza
+        saveState();
+        updateUI();
+    } else {
+        // Se cancelou, atualiza a lista para resetar o visual
+        updateSideList();
+    }
+}
+
+function updateSideList() {
+    const container = document.getElementById('routeList');
+    container.innerHTML = deliveryData.map(d => {
+        const statusConfig = {
+            entregue: { bg: 'bg-green-50 border-green-200', text: 'text-green-700', icon: 'fa-check-circle' },
+            naoentregue: { bg: 'bg-red-50 border-red-200', text: 'text-red-700', icon: 'fa-times-circle' },
+            pendente: { bg: 'bg-yellow-50 border-yellow-200', text: 'text-yellow-700', icon: 'fa-clock' }
+        };
+        const config = statusConfig[d.status] || statusConfig.pendente;
+        
+        const endereco = d['Destination Address'] || d['Endereço'] || 'Sem endereço';
+
+        return `
+          <div class="route-item p-3 rounded-lg mb-2 border ${config.bg} flex justify-between items-center cursor-move transition-all duration-200 hover:shadow-md" data-delivery-id="${d.id}">
+            <div class="flex items-center space-x-3 overflow-hidden">
+              <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center text-base font-bold flex-shrink-0" title="Parada Otimizada ${d.Sequence}">
+                ${d.Sequence}
+              </div>
+              <div>
+                <span class="text-sm font-semibold text-gray-800 truncate block">Pacote: <em>#${d.STOP}</em></span>
+                <span class="text-xs text-gray-500 truncate block">${endereco}</span>
+              </div>
+            </div>
+            <div class="flex items-center space-x-2 flex-shrink-0">
+              <i class="fas fa-grip-vertical text-gray-400 mr-2"></i>
+              <i class="fas ${config.icon} ${config.text}"></i>
+              <span class="${config.text} font-medium capitalize text-xs">${d.status.replace('naoentregue', 'não entregue')}</span>
+            </div>
+          </div>`;
+    }).join('');
+    
+    // Inicializa o Sortable após criar os elementos
+    initializeSortable();
+}
 
 </script>
 </body>
