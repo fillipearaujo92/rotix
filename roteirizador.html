@@ -1,6 +1,3 @@
-
-
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -11,6 +8,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
@@ -74,11 +72,20 @@
 
     .map-floating-btn:hover { transform: scale(1.05); }
     #menuToggleBtn { top: 20px; left: 20px; box-shadow: 5px 5px 20px rgba(0,0,0,0.5); cursor: pointer;}
-    #settingsBtn { bottom: 250px; right: 20px; border: 3px solid white; box-shadow: 5px 5px 20px rgba(0,0,0,0.5); cursor: pointer; }    
-    #reOptimizeBtn { bottom: 430px; right: 20px; border: 3px solid white; box-shadow: 5px 5px 20px rgba(0,0,0,0.5); cursor: pointer;}
-    #centerUserBtn { bottom: 370px; right: 20px; border: 3px solid white; box-shadow: 5px 5px 20px rgba(0,0,0,0.5); cursor: pointer;}
-    #fullscreenBtn { bottom: 310px; right: 20px; border: 3px solid white; box-shadow: 5px 5px 20px rgba(0,0,0,0.5); cursor: pointer; }
-    #themeToggleBtn { bottom: 250px; right: 20px; border: 3px solid white; box-shadow: 5px 5px 20px rgba(0,0,0,0.5); cursor: pointer; }
+    #reOptimizeBtn { bottom: 490px; right: 20px; border: 3px solid white; box-shadow: 5px 5px 20px rgba(0,0,0,0.5); cursor: pointer;}
+    #centerUserBtn { bottom: 430px; right: 20px; border: 3px solid white; box-shadow: 5px 5px 20px rgba(0,0,0,0.5); cursor: pointer;}
+    #fullscreenBtn { bottom: 370px; right: 20px; border: 3px solid white; box-shadow: 5px 5px 20px rgba(0,0,0,0.5); cursor: pointer; }
+    #settingsBtn { bottom: 310px; right: 20px; border: 3px solid white; box-shadow: 5px 5px 20px rgba(0,0,0,0.5); cursor: pointer; }    
+    #toggleTrackingBtn {bottom: 250px; right: 20px; border: 3px solid white; box-shadow: 5px 5px 20px rgba(0,0,0,0.5);}
+
+    #toggleTrackingBtn.tracking-active {
+      background-color: #5E33EA !important; /* Verde quando ativo */
+      transform: scale(1.05);
+    }
+
+    #toggleTrackingBtn.tracking-inactive {
+      background-color: white !important; /* Cinza quando inativo */
+    }
 
     #sideMenu {
         z-index: 9999;
@@ -108,13 +115,6 @@
       100% { transform: rotate(360deg); }
     }
 
-    /* Classes específicas para o Sortable */
-    .sortable-chosen {
-        transform: scale(1.05) rotate(2deg) !important;
-        z-index: 1000;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.3);
-    }
-
     .sortable-ghost {
         opacity: 0.4 !important;
         background: #f3f4f6 !important;
@@ -138,84 +138,6 @@
         transform: translateY(-2px);
     }
 
-    .delete-button {
-        transition: opacity 0.2s ease !important;
-    }
-
-    .delete-button:hover {
-        background: #dc2626 !important;
-        transform: translateY(-50%) scale(1.1) !important;
-    }
-
-    /* Barra de navegação estilo Waze/Uber */
-    #navigationBar {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-    }
-
-    .navigation-direction {
-      width: 60px;
-      height: 60px;
-      background: rgba(255,255,255,0.2);
-      border: 3px solid white;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 24px;
-      color: white;
-      flex-shrink: 0;
-    }
-
-    .navigation-info {
-      flex-grow: 1;
-      color: white;
-    }
-
-    .navigation-distance {
-      font-size: 2.5rem;
-      font-weight: 800;
-      line-height: 1;
-      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    }
-
-    .navigation-instruction {
-      font-size: 1.1rem;
-      font-weight: 500;
-      opacity: 0.95;
-      margin-top: 4px;
-    }
-
-    /* Barra inferior estilo Waze */
-    #navigationFooter {
-      background: rgba(255,255,255,0.95);
-      backdrop-filter: blur(10px);
-      box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
-    }
-
-    /* Indicador de direção do usuário */
-    .user-direction-arrow {
-      position: relative;
-    }
-
-    .user-direction-arrow::after {
-      content: '';
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 0;
-      height: 0;
-      border-left: 8px solid transparent;
-      border-right: 8px solid transparent;
-      border-bottom: 15px solid #3b82f6;
-      transform: translate(-50%, -50%) rotate(var(--user-heading, 0deg));
-      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
-    }
-
-    /* Animações para transições suaves */
-    .navigation-transition {
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
 
   </style>
 </head>
@@ -227,53 +149,9 @@
     <span id="toastMessage"></span>
   </div>
 
-  <!-- Barra de navegação turn-by-turn (estilo Waze/Uber) -->
-  <div id="navigationBar" class="hidden fixed top-0 left-0 right-0 z-[1002] p-4">
-    <div class="flex items-center space-x-4">
-      <!-- Ícone de direção -->
-      <div id="directionIcon" class="navigation-direction">
-        <i class="fas fa-arrow-up"></i>
-      </div>
-      
-      <!-- Informações de navegação -->
-      <div class="navigation-info flex-1">
-        <div id="navigationDistance" class="navigation-distance">--</div>
-        <div id="navigationInstruction" class="navigation-instruction">Iniciando navegação...</div>
-      </div>
-
-      <!-- Botão de cancelar -->
-      <button id="cancelNavigationBtn" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white p-3 rounded-full transition-colors">
-        <i class="fas fa-times text-xl"></i>
-      </button>
-    </div>
-  </div>
-
-  <!-- Barra inferior de navegação -->
-  <div id="navigationFooter" class="hidden fixed bottom-0 left-0 right-0 z-[1001] p-4">
-    <div class="flex justify-between items-center text-gray-800">
-      <!-- Informações da entrega atual -->
-      <div class="flex-1">
-        <div class="text-sm font-medium" id="navDeliveryInfo">Entrega #1</div>
-        <div class="text-xs text-gray-600" id="navDeliveryAddress">Carregando endereço...</div>
-      </div>
-      
-      <!-- Tempo estimado -->
-      <div class="text-center px-4">
-        <div class="text-lg font-bold text-blue-600" id="navETA">--min</div>
-        <div class="text-xs text-gray-600">Tempo</div>
-      </div>
-      
-      <!-- Distância restante -->
-      <div class="text-center">
-        <div class="text-lg font-bold text-green-600" id="navTotalDistance">--km</div>
-        <div class="text-xs text-gray-600">Restante</div>
-      </div>
-    </div>
-  </div>
-
   <!-- Modal de Progresso da Otimização -->
     <div id="progressModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 flex flex-col items-center space-y-4 w-64">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 flex flex-col items-center space-y-4 w-68">
             <div class="loader"></div>
             <h3 class="text-gray-700 font-semibold text-lg dark:text-white">Otimizando Rota...</h3>
             <p id="progressText" class="text-gray-500 text-sm dark:text-white">Calculando distâncias...</p>
@@ -297,6 +175,9 @@
   <!-- Botões Flutuantes do Mapa -->
   <button id="menuToggleBtn" class="map-floating-btn hidden">
     <i class="fas fa-bars text-xl text-gray-600 dark:text-white"></i>
+  </button>
+  <button id="toggleTrackingBtn" class="map-floating-btn hidden tracking-inactive" title="Alternar Rastreamento">
+    <i class="fas fa-location-arrow text-xl text-green-600 dark:text-white"></i>
   </button>
   <button id="settingsBtn" class="map-floating-btn hidden" title="Configurações">
     <i class="fas fa-cog text-xl dark:text-white"></i>
@@ -413,6 +294,10 @@
       <button id="loadNewFileBtn" class="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition"><i class="fas fa-file-upload mr-2"></i>Carregar Novo Arquivo</button>
     </div>
 
+    <button id="validateAddressesBtn" class="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition mb-3">
+      <i class="fas fa-search-location mr-2"></i>Validar Endereços
+    </button>
+
     <!-- SEÇÃO DE CONFIGURAÇÕES DE ROTA FOI REMOVIDA -->
     <div class="mb-6 p-4 rounded-lg border 
             bg-indigo-50 border-indigo-200 text-indigo-700
@@ -439,10 +324,11 @@
       <h1 class="text-4xl font-bold tracking-widest text-gray-800 dark:text-white font-logo">Roday</h1>
       <h3 class="text-xs tracking-widest text-gray-500 dark:text-white mb-8">Inteligência em movimento</h3>
       <label for="fileInput" class="cursor-pointer block border-2 border-dashed border-indigo-400 rounded-xl p-10 hover:bg-indigo-50 transition">
-        <i class="fas fa-file-excel text-4xl text-indigo-500 mb-4 block"></i>
-        <span class="text-indigo-600 font-semibold">Clique ou arraste seu arquivo</span>
-        <input type="file" id="fileInput" accept=".xlsx,.xls" class="hidden"/>
-      </label>
+  <i class="fas fa-file-import text-4xl text-indigo-500 mb-4 block"></i>
+  <span class="text-indigo-600 font-semibold">Clique ou arraste seu arquivo</span>
+  <p class="text-xs text-gray-500 mt-2">Excel (.xlsx/.xls), CSV (.csv), JSON (.json) ou XML (.xml)</p>
+  <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.json,.xml" class="hidden"/>
+</label>
     </div>
   </div>
 
@@ -475,17 +361,25 @@
                 <button onclick="openNavigation()" class="col-span-1 bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center text-xs dark:bg-gray-800 dark:text-white dark:border-2 dark:border-solid dark:border-indigo-600 dark:hover:bg-indigo-900">
                   <i class="fas fa-diamond-turn-right mr-2 dark:text-indigo-500"></i>Navegar</button>
                 
-                <button id="entregueBtn" onclick="markNext('entregue')" class="col-span-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg flex items-center justify-center text-xs dark:bg-gray-800 dark:text-white dark:border-2 dark:border-solid dark:border-green-600 dark:hover:bg-green-900">
+                <!-- Botão ENTREGUE -->
+                <button id="entregueBtn" 
+                        onclick="changeStatus(getNextDeliveryId(), 'entregue')" 
+                        class="col-span-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg flex items-center justify-center text-xs dark:bg-gray-800 dark:text-white dark:border-2 dark:border-solid dark:border-green-600 dark:hover:bg-green-900">
                     <i class="fas fa-check-double mr-2 text-green-500"></i>
                     <span id="entregueText">Entregue</span>
                 </button>
 
-                <button id="naoEntregueBtn" onclick="markNext('naoentregue')" class="col-span-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg flex items-center justify-center text-xs dark:bg-gray-800 dark:text-white dark:border-2 dark:border-solid dark:border-red-600 dark:hover:bg-red-900">
+                <!-- Botão NÃO ENTREGUE -->
+                <button id="naoEntregueBtn" 
+                        onclick="changeStatus(getNextDeliveryId(), 'naoentregue')" 
+                        class="col-span-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg flex items-center justify-center text-xs dark:bg-gray-800 dark:text-white dark:border-2 dark:border-solid dark:border-red-600 dark:hover:bg-red-900">
                     <i class="fas fa-box mr-2 text-red-500"></i>
                     <span id="naoEntregueText">Não Entregue</span>
                 </button>
-                
-                <button onclick="markNext('pendente')" class="col-span-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg flex items-center justify-center text-xs dark:bg-gray-800 dark:text-white dark:border-2 dark:border-solid dark:border-yellow-600 dark:hover:bg-yellow-900">
+
+                <!-- Botão PENDENTE -->
+                <button onclick="changeStatus(getNextDeliveryId(), 'pendente')" 
+                        class="col-span-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg flex items-center justify-center text-xs dark:bg-gray-800 dark:text-white dark:border-2 dark:border-solid dark:border-yellow-600 dark:hover:bg-yellow-900">
                     <i class="fas fa-clock mr-2 text-yellow-500"></i>
                     <span id="pendenteText">Pendente</span>
                 </button>
@@ -496,6 +390,34 @@
   </div>
 
 <script>
+
+  // =================================================================================
+// FUNÇÃO DEBOUNCE (ADICIONAR NO INÍCIO DO SCRIPT)
+// =================================================================================
+
+function getNextDeliveryId() {
+  const next = deliveryData.find(d => d.status === "pendente");
+  return next ? next.id : null;
+}
+
+function debounce(func, wait, immediate) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      timeout = null;
+      if (!immediate) func(...args);
+    };
+    const callNow = immediate && !timeout;
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+    if (callNow) func(...args);
+  };
+}
+
+// Criar versões debounced das funções críticas
+const debouncedUpdateUI = debounce(updateUI, 200);
+const debouncedUpdateSideList = debounce(updateSideList, 150);
+const debouncedUpdateMarkers = debounce(updateMarkers, 250);
 // =================================================================================
 // VARIÁVEIS GLOBAIS
 // =================================================================================
@@ -507,13 +429,14 @@ let isRouteOptimized = false;
 let markerClusterGroup;
 let mapTileLayer;
 
-// Variáveis para navegação turn-by-turn
-let currentRoute = null;
-let currentStepIndex = 0;
-let navigationSteps = [];
-let isNavigating = false;
-let lastUserHeading = 0;
-let navigationWatchId = null;
+// Variáveis para rastreamento contínuo
+let isTrackingActive = false;
+let lastManualMapMove = 0;
+let autoCenterDelay = 3000; // 3 segundos após movimento manual
+let trackingTimer = null;
+let watchId = null;
+
+let addressCorrectionsCache = {};
 
 const iconMapping = {
   'cliente': 'fa-user',
@@ -546,48 +469,64 @@ function saveState() {
       startPoint: startPoint,
       endPoint: endPoint,
       currentStep: getCurrentStep(),
-      isRouteOptimized: isRouteOptimized // <-- ADICIONAR ESTA LINHA
+      isRouteOptimized: isRouteOptimized,
+      isTrackingActive: isTrackingActive // ← ADICIONAR ESTA LINHA
     };
     localStorage.setItem('routeOptimizerState', JSON.stringify(stateToSave));
-  } catch (e) { console.error('Erro ao salvar estado:', e); }
+  } catch (e) { 
+    console.error('Erro ao salvar estado:', e); 
+  }
 }
 
-async function loadSavedState() { // <-- TORNAR A FUNÇÃO ASYNC
+async function loadSavedState() {
   const savedState = localStorage.getItem('routeOptimizerState');
   if (!savedState) return;
+  
   try {
     const state = JSON.parse(savedState);
+    
     if (state.currentStep === 'step3' && state.deliveryData?.length > 0) {
       deliveryData = state.deliveryData;
       selectedColumns = state.selectedColumns || [];
       startPoint = state.startPoint;
       endPoint = state.endPoint;
-      isRouteOptimized = state.isRouteOptimized || false; // <-- RESTAURAR O ESTADO DE OTIMIZAÇÃO
+      isRouteOptimized = state.isRouteOptimized || false;
+      
+      // PROBLEMA PODE ESTAR AQUI - vamos ser mais específicos:
+      if (state.hasOwnProperty('isTrackingActive')) {
+        isTrackingActive = state.isTrackingActive;
+      } else {
+        isTrackingActive = false; // valor padrão se não existir
+      }
 
       document.getElementById('step1').classList.add('hidden');
       document.getElementById('step3').classList.remove('hidden');
       
       showMapControls(true);
-      await initGeolocation(); // Espera a geolocalização para ter o userLocation
+      await initGeolocation();
       initMap();
 
-      // --- SOLUÇÃO: DESENHA A ROTA COMPLETA AO RECARREGAR ---
       if (isRouteOptimized) {
         if (routeLayer) map.removeLayer(routeLayer);
         const allPoints = deliveryData.map(d => ({ lat: +d.Latitude, lng: +d.Longitude }));
-        if (userLocation) allPoints.unshift(userLocation); // Adiciona a localização atual ao traçado
+        if (userLocation) allPoints.unshift(userLocation);
         
         routeLayer = await drawRoute(allPoints, { style: { color: "#5e33ea", weight: 5, opacity: 0.7 } });
         if (routeLayer) {
           routeLayer.addTo(map);
-          // Ajusta o zoom para a rota completa
           setTimeout(() => map.fitBounds(routeLayer.getBounds(), { padding: [50, 50] }), 500);
         }
       }
-      // --- FIM DA SOLUÇÃO ---
-
+      
+      if (isTrackingActive) {
+        startTracking();
+      } else {
+        if (locationUpdateInterval) clearInterval(locationUpdateInterval);
+          locationUpdateInterval = setInterval(updateLocationPeriodically, 30000);
+      }
+      
+      updateTrackingButtonState();
       updateUI();
-      startTracking();
       showToast('Rota anterior restaurada!', 'success');
     }
   } catch (e) {
@@ -616,100 +555,242 @@ document.getElementById('fileInput').addEventListener('change', handleFileUpload
 async function handleFileUpload(e) {
   const file = e.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = async (event) => { // <-- Tornar a função async
-    try {
-      const data = new Uint8Array(event.target.result);
-      const workbook = XLSX.read(data, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+  
+  const fileName = file.name.toLowerCase();
+  let jsonData = [];
 
-      if (jsonData.length === 0) return showToast('Arquivo vazio ou formato inválido', 'error');
-
-      const headers = Object.keys(jsonData[0]);
-      const findHeader = (keys) => headers.find(h => keys.some(key => h.toLowerCase().includes(key)));
-
-      let latHeader = findHeader(['lat', 'latitude']);
-      let lngHeader = findHeader(['lon', 'lng', 'longitude']);
-      const addressHeader = findHeader(['address', 'endereço', 'rua']);
-      const districtHeader = findHeader(['bairro']);
-      const cityHeader = findHeader(['cidade']);
-
-      // Se não houver lat/lng, mas houver endereço, prepara para geocodificação
-      if ((!latHeader || !lngHeader) && addressHeader) {
-        showProgressModal('Iniciando geocodificação...', 0);
-        await delay(50);
-
-        for (let i = 0; i < jsonData.length; i++) {
-          const row = jsonData[i];
-          const fullAddress = [row[addressHeader], row[districtHeader], row[cityHeader]].filter(Boolean).join(', ');
-          
-          const progress = ((i + 1) / jsonData.length) * 100;
-          showProgressModal(`Buscando coordenadas para: ${fullAddress}`, progress);
-          
-          const coords = await geocodeAddress(fullAddress);
-          if (coords) {
-            row.Latitude = coords.lat;
-            row.Longitude = coords.lng;
-          } else {
-            row.Latitude = null;
-            row.Longitude = null;
-            console.warn(`Geocodificação falhou para: ${fullAddress}`);
-          }
-          await delay(200); // Delay para não sobrecarregar a API de geocodificação
-        }
-        
-        hideProgressModal();
-        // Define os novos headers de lat/lng
-        latHeader = 'Latitude';
-        lngHeader = 'Longitude';
-      }
-
-      // Validação final
-      if (!latHeader || !lngHeader) {
-        return showToast('Erro: Não foi possível determinar a Latitude e Longitude das entregas.', 'error');
-      }
-
-      // Processa os dados finais
-      deliveryData = jsonData
-        .filter(row => row[latHeader] && row[lngHeader]) // Filtra entregas que não puderam ser geocodificadas
-        .map((row, index) => ({
-          ...row,
-          Latitude: row[latHeader],
-          Longitude: row[lngHeader],
-          Endereço: addressHeader ? row[addressHeader] : 'Endereço não fornecido',
-          STOP: findHeader(['stop']) ? row[findHeader(['stop'])] : index + 1,
-          id: index,
-          status: "pendente",
-        }));
-
-      if(deliveryData.length === 0) {
-        return showToast('Nenhuma entrega pôde ser localizada. Verifique os endereços.', 'error');
-      }
-
-      // Prepara a lista de colunas para seleção
-      const processedHeaders = [latHeader, lngHeader, addressHeader].filter(Boolean);
-      const cols = headers.filter(h => !processedHeaders.includes(h));
-      
-      const container = document.getElementById("columnsList");
-      container.innerHTML = cols.map(c => `
-        <label class="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-indigo-600 p-2 rounded-lg">
-          <input type="checkbox" value="${c}" class="columnChk h-5 w-5 text-indigo-600 border-gray-300 rounded" ${['cliente', 'telefone', 'obs', 'stop', 'sequence'].some(kw => c.toLowerCase().includes(kw)) ? 'checked' : ''}/>
-          <span class="text-gray-700 dark:text-white">${c}</span>
-        </label>`).join('');
-
-      document.getElementById('step1').classList.add('hidden');
-      document.getElementById('step2').classList.remove('hidden');
-      showToast(`${deliveryData.length} entregas carregadas e localizadas!`, 'success');
-
-    } catch (error) {
-      console.error('Erro ao processar arquivo:', error);
-      showToast('Erro fatal ao processar o arquivo.', 'error');
-      hideProgressModal();
+  try {
+    if (fileName.endsWith('.csv')) {
+      jsonData = await processCSVFile(file);
+    } else if (fileName.endsWith('.json')) {
+      jsonData = await processJSONFile(file);
+    } else if (fileName.endsWith('.xml')) {
+      jsonData = await processXMLFile(file);
+    } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+      jsonData = await processExcelFile(file);
+    } else {
+      return showToast('Formato não suportado. Use: Excel (.xlsx/.xls), CSV (.csv), JSON (.json) ou XML (.xml)', 'error');
     }
-  };
-  reader.readAsArrayBuffer(file);
+
+    if (jsonData.length === 0) {
+      return showToast('Arquivo vazio ou formato inválido', 'error');
+    }
+
+    await processDeliveryData(jsonData);
+    
+  } catch (error) {
+    console.error('Erro ao processar arquivo:', error);
+    showToast('Erro ao processar o arquivo. Verifique o formato.', 'error');
+    hideProgressModal();
+  }
+}
+
+// Processa os dados independentemente do formato de origem
+async function processDeliveryData(jsonData) {
+  const headers = Object.keys(jsonData[0]);
+  const findHeader = (keys) => headers.find(h => keys.some(key => h.toLowerCase().includes(key)));
+
+  let latHeader = findHeader(['lat', 'latitude']);
+  let lngHeader = findHeader(['lon', 'lng', 'longitude']);
+  const addressHeader = findHeader(['address', 'endereço', 'rua', 'endereco']);
+  const districtHeader = findHeader(['bairro', 'district']);
+  const cityHeader = findHeader(['cidade', 'city']);
+
+  // Se não houver lat/lng, mas houver endereço, prepara para geocodificação
+  if ((!latHeader || !lngHeader) && addressHeader) {
+    showProgressModal('Iniciando geocodificação...', 0);
+    await delay(50);
+
+    for (let i = 0; i < jsonData.length; i++) {
+      const row = jsonData[i];
+      const fullAddress = [row[addressHeader], row[districtHeader], row[cityHeader]].filter(Boolean).join(', ');
+      
+      const progress = ((i + 1) / jsonData.length) * 100;
+      showProgressModal(`Buscando coordenadas para: ${fullAddress}`, progress);
+      
+      const coords = await geocodeAddress(fullAddress);
+      if (coords) {
+        row.Latitude = coords.lat;
+        row.Longitude = coords.lng;
+      } else {
+        row.Latitude = null;
+        row.Longitude = null;
+        console.warn(`Geocodificação falhou para: ${fullAddress}`);
+      }
+      await delay(200);
+    }
+    
+    hideProgressModal();
+    latHeader = 'Latitude';
+    lngHeader = 'Longitude';
+  }
+
+  // Validação final
+  if (!latHeader || !lngHeader) {
+    return showToast('Erro: Não foi possível determinar a Latitude e Longitude das entregas.', 'error');
+  }
+
+  // Processa os dados finais
+  deliveryData = jsonData
+    .filter(row => row[latHeader] && row[lngHeader])
+    .map((row, index) => ({
+      ...row,
+      Latitude: row[latHeader],
+      Longitude: row[lngHeader],
+      Endereço: addressHeader ? row[addressHeader] : 'Endereço não fornecido',
+      STOP: findHeader(['stop']) ? row[findHeader(['stop'])] : index + 1,
+      id: index,
+      status: "pendente",
+    }));
+
+  if(deliveryData.length === 0) {
+    return showToast('Nenhuma entrega pôde ser localizada. Verifique os endereços.', 'error');
+  }
+
+  // Prepara a lista de colunas para seleção
+  const processedHeaders = [latHeader, lngHeader, addressHeader].filter(Boolean);
+  const cols = headers.filter(h => !processedHeaders.includes(h));
+  
+  const container = document.getElementById("columnsList");
+  container.innerHTML = cols.map(c => `
+    <label class="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-indigo-600 p-2 rounded-lg">
+      <input type="checkbox" value="${c}" class="columnChk h-5 w-5 text-indigo-600 border-gray-300 rounded" ${['cliente', 'telefone', 'obs', 'stop', 'sequence'].some(kw => c.toLowerCase().includes(kw)) ? 'checked' : ''}/>
+      <span class="text-gray-700 dark:text-white">${c}</span>
+    </label>`).join('');
+
+  document.getElementById('step1').classList.add('hidden');
+  document.getElementById('step2').classList.remove('hidden');
+  
+  const fileType = detectFileType(jsonData);
+  showToast(`${deliveryData.length} entregas carregadas${fileType}!`, 'success');
+}
+
+// Função auxiliar para detectar tipo de arquivo pelo conteúdo
+function detectFileType(data) {
+  if (data.length === 0) return '';
+  
+  const firstRow = data[0];
+  const keys = Object.keys(firstRow);
+  
+  // Heurística simples baseada nos campos
+  if (keys.some(k => k.toLowerCase().includes('xml') || k.includes('xmlns'))) {
+    return ' de arquivo XML';
+  } else if (keys.length > 10) {
+    return ' de arquivo Excel/CSV';
+  } else {
+    return ' do arquivo';
+  }
+}
+
+// Função para processar CSV
+async function processCSVFile(file) {
+  return new Promise((resolve, reject) => {
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      dynamicTyping: true,
+      complete: (results) => {
+        if (results.errors.length > 0) {
+          console.warn('Erros no CSV:', results.errors);
+        }
+        resolve(results.data);
+      },
+      error: (error) => reject(error)
+    });
+  });
+}
+
+// Função para processar JSON
+async function processJSONFile(file) {
+  const text = await file.text();
+  const data = JSON.parse(text);
+  
+  // Se for um objeto com array dentro, tenta extrair o array
+  if (Array.isArray(data)) {
+    return data;
+  } else if (typeof data === 'object' && data !== null) {
+    // Procura por arrays dentro do objeto
+    const arrayKeys = Object.keys(data).filter(key => Array.isArray(data[key]));
+    if (arrayKeys.length > 0) {
+      return data[arrayKeys[0]]; // Pega o primeiro array encontrado
+    }
+  }
+  
+  throw new Error('JSON deve conter um array de entregas');
+}
+
+// Função para processar XML
+async function processXMLFile(file) {
+  const text = await file.text();
+  const parser = new DOMParser();
+  const xmlDoc = parser.parseFromString(text, 'text/xml');
+  
+  // Verifica erros de parsing
+  if (xmlDoc.getElementsByTagName('parsererror').length > 0) {
+    throw new Error('XML inválido');
+  }
+  
+  const jsonData = [];
+  
+  // Tenta encontrar elementos que representam entregas
+  const possibleRoots = ['delivery', 'entrega', 'item', 'row', 'record'];
+  let deliveryElements = [];
+  
+  for (const rootName of possibleRoots) {
+    deliveryElements = xmlDoc.getElementsByTagName(rootName);
+    if (deliveryElements.length > 0) break;
+  }
+  
+  // Se não encontrou, pega o primeiro nível de elementos
+  if (deliveryElements.length === 0) {
+    const rootElement = xmlDoc.documentElement;
+    deliveryElements = rootElement.children;
+  }
+  
+  // Converte elementos XML em objetos JSON
+  for (let element of deliveryElements) {
+    const delivery = {};
+    
+    // Pega atributos
+    for (let attr of element.attributes) {
+      delivery[attr.name] = attr.value;
+    }
+    
+    // Pega elementos filhos
+    for (let child of element.children) {
+      delivery[child.tagName] = child.textContent;
+    }
+    
+    // Se não tem filhos, pega o texto do elemento
+    if (element.children.length === 0 && element.textContent.trim()) {
+      delivery['value'] = element.textContent.trim();
+    }
+    
+    jsonData.push(delivery);
+  }
+  
+  return jsonData;
+}
+
+// Função original do Excel (renomeada)
+async function processExcelFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        resolve(jsonData);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    reader.onerror = () => reject(new Error('Erro ao ler arquivo Excel'));
+    reader.readAsArrayBuffer(file);
+  });
 }
 
 // Substitua o listener do 'confirmMappingBtn' por este
@@ -726,35 +807,66 @@ document.getElementById('confirmColumnsBtn')?.addEventListener('click', () => {
 // =================================================================================
 // GEOLOCALIZAÇÃO E GEOCODIFICAÇÃO (Nominatim/OSM)
 // =================================================================================
+
 function initGeolocation() {
   return new Promise((resolve) => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         pos => { 
           userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          updateUserMarker(); // ← ADICIONAR ESTA LINHA
           resolve();
         },
         () => { 
             userLocation = { lat: -3.73186, lng: -38.5267 }; // Fallback
+            updateUserMarker(); // ← ADICIONAR ESTA LINHA
             showToast('Usando localização padrão. Permita o acesso para maior precisão.', 'warn');
             resolve();
         }
       );
     } else {
       userLocation = { lat: -3.73186, lng: -38.5267 }; // Fallback
+      updateUserMarker(); // ← ADICIONAR ESTA LINHA
       showToast('Geolocalização não suportada por este navegador.', 'error');
       resolve();
     }
   });
 }
 
+// Função para atualização periódica da localização (sem rastreamento contínuo)
+function updateLocationPeriodically() {
+  if (!navigator.geolocation) return;
+  
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const newLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      const hasLocationChanged = !userLocation || 
+        Math.abs(userLocation.lat - newLocation.lat) > 0.00001 || 
+        Math.abs(userLocation.lng - newLocation.lng) > 0.00001;
+
+      if (hasLocationChanged) {
+        userLocation = newLocation;
+        updateUserMarker();
+      }
+    },
+    error => console.log('Erro ao atualizar localização:', error),
+    { enableHighAccuracy: false, timeout: 5000, maximumAge: 30000 }
+  );
+}
+
 async function geocodeAddress(address) {
   if (!address) return null;
   try {
-    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address )}&countrycodes=br&limit=1`);
+    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(address)}&countrycodes=br&limit=1`);
     const data = await response.json();
     if (data && data.length > 0) {
-      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), address: data[0].display_name };
+      const result = data[0];
+      return { 
+        lat: parseFloat(result.lat), 
+        lng: parseFloat(result.lon), 
+        address: result.display_name,
+        addressDetails: result.address // contém bairro, postcode, city, etc.
+      };
     }
     return null;
   } catch (error) {
@@ -762,6 +874,26 @@ async function geocodeAddress(address) {
     return null;
   }
 }
+
+function compareAddressDetails(item, geocodeDetails) {
+  if (!geocodeDetails) return false;
+
+  // Normaliza strings para comparação simples
+  const normalize = str => (str || '').toLowerCase().replace(/\s+/g, '').trim();
+
+  const itemBairro = normalize(item.Bairro || item.bairro);
+  const itemCEP = normalize(item['Zipcode/Postal code'] || item.CEP || item.cep);
+
+  const geoBairro = normalize(geocodeDetails.suburb || geocodeDetails.neighbourhood || geocodeDetails.city_district || geocodeDetails.village);
+  const geoCEP = normalize(geocodeDetails.postcode);
+
+  // Verifica se bairro e/ou CEP batem (pelo menos um deve bater)
+  const bairroMatch = itemBairro && geoBairro && itemBairro === geoBairro;
+  const cepMatch = itemCEP && geoCEP && itemCEP === geoCEP;
+
+  return bairroMatch || cepMatch;
+}
+
 
 // =================================================================================
 // OTIMIZAÇÃO RÁPIDA E INTELIGENTE (HÍBRIDA)
@@ -1302,6 +1434,7 @@ function calculateDistance(stop1, stop2) {
 }
 
 async function reOptimizeFromCurrentLocation() {
+  toggleMenu(false);
   showToast('Reotimizando a rota...', 'info');
   await optimizeRoute(); // 🔹 usa exatamente a mesma lógica da otimização inicial
 }
@@ -1440,8 +1573,6 @@ function updateMarkers() {
   });
 }
 
-
-
 function showNextStop() {
   const next = deliveryData.find(d => d.status === "pendente");
   const nextStopBar = document.getElementById('nextStopBar');
@@ -1509,21 +1640,20 @@ function showNextStop() {
   nextStopBar.classList.remove("hidden");
 }
 
-
 function changeStatus(deliveryId, newStatus) {
   const delivery = deliveryData.find(d => d.id === deliveryId);
   if (delivery) {
     delivery.status = newStatus;
     const messages = {
-      'entregue': { text: `✅ Pacote #${delivery.STOP} marcado como Entregue!`, type: 'success' },
-      'naoentregue': { text: `❌ Pacote #${delivery.STOP} marcado como Não Entregue`, type: 'warn' },
-      'pendente': { text: `⏸️ Pacote #${delivery.STOP} marcado como Pendente`, type: 'info' }
+      'entregue': { text: `Pacote #${delivery.STOP} marcado como Entregue!`, type: 'success' },
+      'naoentregue': { text: `Pacote #${delivery.STOP} marcado como Não Entregue`, type: 'warn' },
+      'pendente': { text: `Pacote #${delivery.STOP} marcado como Pendente`, type: 'info' }
     };
     if (messages[newStatus]) {
         showToast(messages[newStatus].text, messages[newStatus].type);
     }
     saveState();
-    updateUI(); // Essencial para redesenhar tudo, incluindo a rota
+    debouncedUpdateUI(); // ← MUDANÇA AQUI
   }
 }
 
@@ -1571,7 +1701,8 @@ function updateStats() {
 }
 
 function updateSideList() {
-    document.getElementById('routeList').innerHTML = deliveryData.map(d => {
+    const container = document.getElementById('routeList');
+    container.innerHTML = deliveryData.map(d => {
         const statusConfig = {
             entregue: { bg: 'bg-green-50 border-green-200', text: 'text-green-700', icon: 'fa-check-circle' },
             naoentregue: { bg: 'bg-red-50 border-red-200', text: 'text-red-700', icon: 'fa-times-circle' },
@@ -1579,26 +1710,40 @@ function updateSideList() {
         };
         const config = statusConfig[d.status] || statusConfig.pendente;
         
-        // CORREÇÃO: Procura por 'Destination Address' ou 'Endereço'
         const endereco = d['Destination Address'] || d['Endereço'] || 'Sem endereço';
 
         return `
-          <div class="p-3 rounded-lg mb-2 border ${config.bg} flex justify-between items-center">
-            <div class="flex items-center space-x-3 overflow-hidden">
+          <div class="route-item p-3 rounded-lg mb-2 border ${config.bg} flex justify-between items-center cursor-move transition-all duration-200 hover:shadow-md" data-delivery-id="${d.id}">
+            <div class="flex items-center space-x-3 overflow-hidden flex-1">
+              <i class="fas fa-grip-vertical text-gray-400"></i>
               <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center text-base font-bold flex-shrink-0" title="Parada Otimizada ${d.Sequence}">
                 ${d.Sequence}
               </div>
-              <div>
+              <div class="flex-1 min-w-0">
                 <span class="text-sm font-semibold text-gray-800 truncate block">Pacote: <em>#${d.STOP}</em></span>
                 <span class="text-xs text-gray-500 truncate block">${endereco}</span>
               </div>
             </div>
-            <div class="flex items-center space-x-2 flex-shrink-0">
-              <i class="fas ${config.icon} ${config.text}"></i>
-              <span class="${config.text} font-medium capitalize text-xs">${d.status.replace('naoentregue', 'não entregue')}</span>
+            
+            <div class="flex items-center space-x-3 flex-shrink-0">
+              <div class="flex items-center space-x-2">
+                
+                <i class="fas ${config.icon} ${config.text}"></i>
+                <span class="${config.text} font-medium capitalize text-xs">${d.status.replace('naoentregue', 'não entregue')}</span>
+              </div>
+              
+              <!-- BOTÃO DE LIXEIRA CORRIGIDO -->
+              <button onclick="removeDelivery(${d.id})" 
+                      class="w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-sm hover:shadow-md"
+                      title="Remover parada">
+                <i class="fas fa-trash text-xs"></i>
+              </button>
             </div>
           </div>`;
     }).join('');
+    
+    // Inicializa o Sortable após criar os elementos
+    initializeSortable();
 }
 
 // =================================================================================
@@ -1609,8 +1754,8 @@ function markNext(status) {
   if (next) {
     next.status = status;
     const messages = {
-      'entregue': { text: '✅ Entrega Realizada!', type: 'success' },
-      'naoentregue': { text: '❌ Entrega Não Realizada', type: 'warn' }
+      'entregue': { text: 'Entrega Realizada!', type: 'success' },
+      'naoentregue': { text: 'Entrega Não Realizada', type: 'warn' }
     };
     if (messages[status]) {
         showToast(messages[status].text, messages[status].type);
@@ -1620,7 +1765,7 @@ function markNext(status) {
   }
 }
 
-/*function openNavigation() {
+function openNavigation() {
     const next = deliveryData.find(d => d.status === "pendente");
     if (next) {
         const navApp = localStorage.getItem('navApp') || 'google';
@@ -1636,484 +1781,231 @@ function markNext(status) {
         
         window.open(url, '_blank' );
     }
-}*/
-
-function openNavigation() {
-    const next = deliveryData.find(d => d.status === "pendente");
-    if (!next) return;
-
-    // Pergunta se quer usar navegação interna ou externa
-    showNavigationChoice(next);
-}
-
-async function showNavigationChoice(delivery) {
-    const modal = document.createElement('div');
-    modal.className = 'fixed inset-0 bg-black bg-opacity-60 z-[9999] flex items-center justify-center p-4';
-    modal.innerHTML = `
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 w-full max-w-sm">
-            <div class="text-center mb-6">
-                <div class="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-route text-blue-600 dark:text-blue-400 text-2xl"></i>
-                </div>
-                <h3 class="text-lg font-bold text-gray-800 dark:text-white mb-2">Escolha o tipo de navegação</h3>
-                <p class="text-sm text-gray-600 dark:text-gray-300">Como deseja navegar até a próxima entrega?</p>
-            </div>
-            
-            <div class="space-y-3">
-                <button id="internalNavBtn" class="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center transition-all">
-                    <i class="fas fa-compass mr-3"></i>
-                    Navegação Interna (Roday)
-                </button>
-                
-                <button id="externalNavBtn" class="w-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center transition-all">
-                    <i class="fas fa-external-link-alt mr-3"></i>
-                    Aplicativo Externo
-                </button>
-                
-                <button id="cancelNavChoice" class="w-full bg-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 font-medium py-2 transition-colors">
-                    Cancelar
-                </button>
-            </div>
-        </div>
-    `;
-
-    document.body.appendChild(modal);
-
-    // Event listeners
-    modal.querySelector('#internalNavBtn').addEventListener('click', () => {
-        document.body.removeChild(modal);
-        startInternalNavigation(delivery);
-    });
-
-    modal.querySelector('#externalNavBtn').addEventListener('click', () => {
-        document.body.removeChild(modal);
-        openExternalNavigation(delivery);
-    });
-
-    modal.querySelector('#cancelNavChoice').addEventListener('click', () => {
-        document.body.removeChild(modal);
-    });
-
-    // Fechar clicando fora
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            document.body.removeChild(modal);
-        }
-    });
-}
-
-function openExternalNavigation(delivery) {
-    const navApp = localStorage.getItem('navApp') || 'google';
-    let url;
-
-    if (navApp === 'waze') {
-        url = `https://www.waze.com/ul?ll=${delivery.Latitude},${delivery.Longitude}&navigate=yes`;
-    } else if (navApp === 'apple') {
-        url = `http://maps.apple.com/?daddr=${delivery.Latitude},${delivery.Longitude}`;
-    } else {
-        url = `https://www.google.com/maps/dir/?api=1&destination=${delivery.Latitude},${delivery.Longitude}`;
-    }
-    
-    window.open(url, '_blank');
 }
 
 function startTracking() {
-  if (!navigator.geolocation) return;
-  
-  // Se já está navegando, não inicia o tracking normal
-  if (isNavigating) return;
-  
-  const watchOptions = { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 };
+  if (locationUpdateInterval) {
+    clearInterval(locationUpdateInterval);
+    locationUpdateInterval = null;
+  }
+
+  if (!navigator.geolocation) {
+    showToast('Geolocalização não disponível neste dispositivo', 'error');
+    return;
+  }
+
+  // Para qualquer rastreamento anterior
+  if (watchId !== null) {
+    navigator.geolocation.clearWatch(watchId);
+  }
+
+  const watchOptions = { 
+    enableHighAccuracy: true, 
+    timeout: 10000, 
+    maximumAge: 1000 
+  };
+
   let lastVibrationTime = 0;
+  isTrackingActive = true;
+  saveState();
+  updateUserMarker();
 
-  navigator.geolocation.watchPosition(pos => {
-    userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-    
-    if (!userMarker) {
-      const pulseIcon = L.divIcon({
-        className: "",
-        html: `<div class="relative"><div class="w-6 h-6 bg-blue-500 rounded-full border-4 border-white shadow-md"></div><div class="absolute inset-0 rounded-full bg-blue-400 opacity-50 animate-ping"></div></div>`
+  // Adiciona listener para detectar movimento manual do mapa
+  if (map) {
+    map.on('movestart', onManualMapMove);
+    map.on('zoomstart', onManualMapMove);
+  }
+
+  watchId = navigator.geolocation.watchPosition(
+    (pos) => {
+      const newLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      const hasLocationChanged = !userLocation || 
+        Math.abs(userLocation.lat - newLocation.lat) > 0.00001 || 
+        Math.abs(userLocation.lng - newLocation.lng) > 0.00001;
+
+      userLocation = newLocation;
+
+      // Atualiza ou cria o marcador do usuário
+      updateUserMarker();
+
+      // Centraliza automaticamente se necessário
+      if (hasLocationChanged) {
+        autoCenterIfNeeded();
+      }
+
+      // Verifica proximidade com próxima entrega
+      checkProximityToNextDelivery(lastVibrationTime);
+    },
+    (error) => {
+      console.error('Erro de geolocalização:', error);
+      showToast(`Erro ao rastrear localização: ${error.message}`, 'error');
+    },
+    watchOptions
+  );
+
+  showToast('Rastreamento ativado - sua localização será centralizada automaticamente', 'success');
+  updateTrackingButtonState()
+}
+
+function onManualMapMove() {
+  lastManualMapMove = Date.now();
+  
+  // Cancela timer anterior se existir
+  if (trackingTimer) {
+    clearTimeout(trackingTimer);
+  }
+
+  // Programa nova centralização após o delay
+  trackingTimer = setTimeout(() => {
+    if (isTrackingActive && userLocation) {
+      map.setView([userLocation.lat, userLocation.lng], map.getZoom(), {
+        animate: true,
+        pan: { duration: 1 }
       });
-      userMarker = L.marker([userLocation.lat, userLocation.lng], { icon: pulseIcon }).addTo(map).bindPopup("📍 Você está aqui");
-    } else {
-      userMarker.setLatLng([userLocation.lat, userLocation.lng]);
     }
-
-    const nextDelivery = deliveryData.find(d => d.status === "pendente");
-    if (nextDelivery) {
-      const distanceToNext = haversine(userLocation, { lat: +nextDelivery.Latitude, lng: +nextDelivery.Longitude });
-      const autoZoomEnabled = localStorage.getItem('autoZoom') !== 'false';
-      
-      if (autoZoomEnabled && distanceToNext < 0.5) {
-        const bounds = L.latLngBounds([userLocation, { lat: +nextDelivery.Latitude, lng: +nextDelivery.Longitude }]);
-        map.fitBounds(bounds, { padding: [80, 80], maxZoom: 17 });
-      }
-      
-      const now = Date.now();
-      if (distanceToNext < 0.1 && (now - lastVibrationTime > 30000)) {
-        if (navigator.vibrate) {
-          navigator.vibrate([200, 100, 200]);
-          showToast(`Você está chegando na Parada ${nextDelivery.Sequence}!`, 'info');
-          lastVibrationTime = now;
-        }
-      }
-    }
-  }, () => { 
-    showToast("Não foi possível obter sua localização em tempo real.", "error"); 
-  }, watchOptions);
+  }, autoCenterDelay);
 }
 
-// =================================================================================
-// SISTEMA DE NAVEGAÇÃO TURN-BY-TURN
-// =================================================================================
+function autoCenterIfNeeded() {
+  if (!isTrackingActive || !userLocation || !map) return;
 
-async function startInternalNavigation(delivery) {
-    if (!userLocation) {
-        showToast('Localização não disponível para navegação', 'error');
-        return;
-    }
+  const now = Date.now();
+  const timeSinceManualMove = now - lastManualMapMove;
 
-    isNavigating = true;
-    showToast('Iniciando navegação...', 'info');
-    
-    // Busca a rota com instruções detalhadas
-    const routeData = await fetchDetailedRoute(userLocation, {
-        lat: delivery.Latitude,
-        lng: delivery.Longitude
+  // Se não houve movimento manual recente, centraliza imediatamente
+  if (timeSinceManualMove > autoCenterDelay || lastManualMapMove === 0) {
+    map.setView([userLocation.lat, userLocation.lng], Math.max(map.getZoom(), 15), {
+      animate: true,
+      pan: { duration: 1 }
     });
-
-    if (!routeData) {
-        showToast('Não foi possível calcular a rota', 'error');
-        return;
-    }
-
-    // Configura a navegação
-    currentRoute = routeData.routes[0];
-    navigationSteps = currentRoute.legs[0].steps;
-    currentStepIndex = 0;
-
-    // Mostra as barras de navegação
-    showNavigationUI(delivery);
-    
-    // Oculta controles normais
-    hideNormalUI();
-    
-    // Ajusta o mapa para navegação
-    setupNavigationMap();
-    
-    // Inicia o rastreamento de navegação
-    startNavigationTracking();
-    
-    // Atualiza a primeira instrução
-    updateNavigationDisplay();
+  }
 }
 
-async function fetchDetailedRoute(from, to) {
-    const coords = `${from.lng},${from.lat};${to.lng},${to.lat}`;
-    const url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson&steps=true&annotations=true`;
-    
-    try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        return await response.json();
-    } catch (error) {
-        console.error('Erro ao buscar rota detalhada:', error);
-        return null;
-    }
-}
+function updateUserMarker() {
+  if (!userLocation || !map) return;
 
-function showNavigationUI(delivery) {
-    // Mostra barras de navegação
-    document.getElementById('navigationBar').classList.remove('hidden');
-    document.getElementById('navigationFooter').classList.remove('hidden');
-    
-    // Atualiza informações da entrega
-    const endereco = delivery['Destination Address'] || delivery['Endereço'] || 'Endereço não disponível';
-    document.getElementById('navDeliveryInfo').textContent = `Entrega #${delivery.STOP}`;
-    document.getElementById('navDeliveryAddress').textContent = endereco;
-    
-    // Calcula tempo e distância estimados
-    const totalDistance = (currentRoute.distance / 1000).toFixed(1);
-    const totalTime = Math.round(currentRoute.duration / 60);
-    
-    document.getElementById('navETA').textContent = `${totalTime}min`;
-    document.getElementById('navTotalDistance').textContent = `${totalDistance}km`;
-}
-
-function hideNormalUI() {
-    // Oculta a barra de próxima parada
-    document.getElementById('nextStopBar').classList.add('hidden');
-    
-    // Oculta alguns botões flutuantes
-    ['settingsBtn', 'reOptimizeBtn'].forEach(id => {
-        document.getElementById(id).classList.add('hidden');
-    });
-}
-
-function setupNavigationMap() {
-    // Zoom mais próximo para navegação
-    map.setZoom(18);
-    
-    // Centro na localização do usuário
-    map.setView(userLocation, 18);
-    
-    // Desenha apenas a rota para o destino atual
-    if (nextDeliveryRouteLayer) map.removeLayer(nextDeliveryRouteLayer);
-    if (routeLayer) map.removeLayer(routeLayer);
-    
-    // Desenha a rota de navegação
-    const routeGeometry = currentRoute.geometry;
-    nextDeliveryRouteLayer = L.geoJSON(routeGeometry, {
-        style: { color: "#ff6b35", weight: 8, opacity: 0.9 }
-    }).addTo(map);
-}
-
-function startNavigationTracking() {
-    const options = {
-        enableHighAccuracy: true,
-        timeout: 5000,
-        maximumAge: 1000
+  if (!userMarker) {
+    // Ícone diferente baseado no estado do rastreamento
+    const createUserIcon = () => {
+      if (isTrackingActive) {
+        // Ícone animado para rastreamento ativo
+        return L.divIcon({
+          className: "",
+          html: `<div class="relative">
+                   <div class="w-6 h-6 bg-blue-500 rounded-full border-4 border-white shadow-md"></div>
+                   <div class="absolute inset-0 rounded-full bg-blue-400 opacity-50 animate-ping"></div>
+                 </div>`
+        });
+      } else {
+        // Ícone estático para localização sem rastreamento
+        return L.divIcon({
+          className: "",
+          html: `<div class="w-6 h-6 bg-blue-500 rounded-full border-4 border-white shadow-md"></div>`
+        });
+      }
     };
 
-    navigationWatchId = navigator.geolocation.watchPosition(
-        position => updateNavigationPosition(position),
-        error => console.error('Erro de navegação:', error),
-        options
-    );
-}
-
-function updateNavigationPosition(position) {
-    const newLocation = {
-        lat: position.coords.latitude,
-        lng: position.coords.longitude
-    };
-
-    // Atualiza localização global
-    userLocation = newLocation;
+    userMarker = L.marker([userLocation.lat, userLocation.lng], { 
+      icon: createUserIcon(),
+      zIndexOffset: 1000
+    }).addTo(map).bindPopup("📍 Você está aqui");
+  } else {
+    userMarker.setLatLng([userLocation.lat, userLocation.lng]);
     
-    // Atualiza marcador do usuário com direção
-    updateUserMarkerWithDirection(position);
-    
-    // Verifica se precisa avançar para próxima instrução
-    checkNavigationProgress(newLocation);
-    
-    // Atualiza display de navegação
-    updateNavigationDisplay();
-    
-    // Mantém mapa centrado no usuário
-    map.setView(newLocation, map.getZoom());
-}
-
-function updateUserMarkerWithDirection(position) {
-    const heading = position.coords.heading || lastUserHeading;
-    if (heading !== null) lastUserHeading = heading;
-
-    const directionIcon = L.divIcon({
+    // Atualiza o ícone baseado no estado do rastreamento
+    const newIcon = isTrackingActive ? 
+      L.divIcon({
         className: "",
-        html: `
-            <div class="user-direction-arrow w-8 h-8 bg-blue-500 rounded-full border-4 border-white shadow-lg flex items-center justify-center" 
-                 style="--user-heading: ${heading || 0}deg">
-                <div class="w-2 h-2 bg-white rounded-full"></div>
-            </div>
-        `,
-        iconSize: [32, 32],
-        iconAnchor: [16, 16]
-    });
-
-    if (userMarker) {
-        userMarker.setLatLng([userLocation.lat, userLocation.lng]);
-        userMarker.setIcon(directionIcon);
-    } else {
-        userMarker = L.marker([userLocation.lat, userLocation.lng], { icon: directionIcon }).addTo(map);
-    }
+        html: `<div class="relative">
+                 <div class="w-6 h-6 bg-blue-500 rounded-full border-4 border-white shadow-md"></div>
+                 <div class="absolute inset-0 rounded-full bg-blue-400 opacity-50 animate-ping"></div>
+               </div>`
+      }) :
+      L.divIcon({
+        className: "",
+        html: `<div class="w-6 h-6 bg-blue-500 rounded-full border-4 border-white shadow-md"></div>`
+      });
+    
+    userMarker.setIcon(newIcon);
+  }
 }
 
-function checkNavigationProgress(currentPosition) {
-    if (currentStepIndex >= navigationSteps.length) return;
+function checkProximityToNextDelivery(lastVibrationTime) {
+  const nextDelivery = deliveryData.find(d => d.status === "pendente");
+  if (!nextDelivery || !userLocation) return;
 
-    const currentStep = navigationSteps[currentStepIndex];
-    const stepEndLocation = currentStep.maneuver.location;
-    
-    // Calcula distância até o fim da instrução atual
-    const distanceToStepEnd = haversine(currentPosition, {
-        lat: stepEndLocation[1],
-        lng: stepEndLocation[0]
-    });
+  const distanceToNext = haversine(userLocation, { 
+    lat: +nextDelivery.Latitude, 
+    lng: +nextDelivery.Longitude 
+  });
 
-    // Se chegou perto da próxima manobra (30 metros)
-    if (distanceToStepEnd < 0.03) {
-        currentStepIndex++;
-        
-        // Vibra para indicar nova instrução
-        if (navigator.vibrate && currentStepIndex < navigationSteps.length) {
-            navigator.vibrate([100, 50, 100]);
-        }
-        
-        updateNavigationDisplay();
-    }
-}
+  // Auto-zoom quando próximo
+  const autoZoomEnabled = localStorage.getItem('autoZoom') !== 'false';
+  if (autoZoomEnabled && distanceToNext < 0.5) {
+    const bounds = L.latLngBounds([
+      userLocation, 
+      { lat: +nextDelivery.Latitude, lng: +nextDelivery.Longitude }
+    ]);
+    map.fitBounds(bounds, { padding: [80, 80], maxZoom: 17 });
+  }
 
-function updateNavigationDisplay() {
-    if (currentStepIndex >= navigationSteps.length) {
-        // Chegou ao destino
-        finishNavigation();
-        return;
-    }
-
-    const currentStep = navigationSteps[currentStepIndex];
-    const maneuver = currentStep.maneuver;
-    
-    // Atualiza ícone de direção
-    const directionIcon = getDirectionIcon(maneuver.type, maneuver.modifier);
-    document.getElementById('directionIcon').innerHTML = `<i class="fas ${directionIcon}"></i>`;
-    
-    // Atualiza distância para próxima manobra
-    const stepEndLocation = maneuver.location;
-    const distanceToTurn = haversine(userLocation, {
-        lat: stepEndLocation[1],
-        lng: stepEndLocation[0]
-    });
-    
-    // Formata distância
-    let distanceText;
-    if (distanceToTurn < 0.1) { // Menos de 100m
-        distanceText = Math.round(distanceToTurn * 1000) + 'm';
-    } else if (distanceToTurn < 1) { // Menos de 1km
-        distanceText = Math.round(distanceToTurn * 1000 / 50) * 50 + 'm'; // Arredonda para 50m
-    } else {
-        distanceText = distanceToTurn.toFixed(1) + 'km';
-    }
-    
-    document.getElementById('navigationDistance').textContent = distanceText;
-    
-    // Atualiza instrução
-    const instruction = getNavigationInstruction(maneuver.type, maneuver.modifier, currentStep.name);
-    document.getElementById('navigationInstruction').textContent = instruction;
-    
-    // Atualiza distância total restante
-    const remainingSteps = navigationSteps.slice(currentStepIndex);
-    const totalRemainingDistance = remainingSteps.reduce((sum, step) => sum + step.distance, 0) / 1000;
-    document.getElementById('navTotalDistance').textContent = totalRemainingDistance.toFixed(1) + 'km';
-    
-    // Atualiza tempo restante (estimativa simples)
-    const remainingTime = Math.round(remainingSteps.reduce((sum, step) => sum + step.duration, 0) / 60);
-    document.getElementById('navETA').textContent = remainingTime + 'min';
-}
-
-function getDirectionIcon(maneuverType, modifier) {
-    const iconMap = {
-        'turn': {
-            'left': 'fa-arrow-turn-left',
-            'right': 'fa-arrow-turn-right',
-            'sharp left': 'fa-arrow-turn-left',
-            'sharp right': 'fa-arrow-turn-right',
-            'slight left': 'fa-arrow-up-left',
-            'slight right': 'fa-arrow-up-right'
-        },
-        'new name': 'fa-arrow-up',
-        'depart': 'fa-arrow-up',
-        'arrive': 'fa-flag-checkered',
-        'merge': 'fa-code-merge',
-        'ramp': 'fa-arrow-up',
-        'on ramp': 'fa-arrow-up-right',
-        'off ramp': 'fa-arrow-down-right',
-        'fork': 'fa-code-fork',
-        'end of road': 'fa-arrow-turn-right',
-        'continue': 'fa-arrow-up',
-        'roundabout': 'fa-circle-notch',
-        'rotary': 'fa-circle-notch',
-        'roundabout turn': 'fa-circle-notch'
-    };
-
-    if (iconMap[maneuverType] && typeof iconMap[maneuverType] === 'object') {
-        return iconMap[maneuverType][modifier] || 'fa-arrow-up';
-    }
-    
-    return iconMap[maneuverType] || 'fa-arrow-up';
-}
-
-function getNavigationInstruction(maneuverType, modifier, streetName) {
-    const instructions = {
-        'turn': {
-            'left': 'Vire à esquerda',
-            'right': 'Vire à direita',
-            'sharp left': 'Vire acentuadamente à esquerda',
-            'sharp right': 'Vire acentuadamente à direita',
-            'slight left': 'Mantenha-se ligeiramente à esquerda',
-            'slight right': 'Mantenha-se ligeiramente à direita'
-        },
-        'new name': 'Continue em frente',
-        'depart': 'Siga em frente',
-        'arrive': 'Você chegou ao destino!',
-        'merge': 'Entre na via',
-        'on ramp': 'Pegue a entrada',
-        'off ramp': 'Pegue a saída',
-        'fork': 'Na bifurcação',
-        'end of road': 'No final da via, vire',
-        'continue': 'Continue em frente',
-        'roundabout': 'Na rotatória',
-        'rotary': 'Na rotatória'
-    };
-
-    let baseInstruction = 'Siga em frente';
-    
-    if (instructions[maneuverType] && typeof instructions[maneuverType] === 'object') {
-        baseInstruction = instructions[maneuverType][modifier] || instructions[maneuverType].default || baseInstruction;
-    } else if (instructions[maneuverType]) {
-        baseInstruction = instructions[maneuverType];
-    }
-
-    // Adiciona nome da rua se disponível
-    if (streetName && streetName !== '') {
-        if (maneuverType === 'arrive') {
-            return baseInstruction;
-        }
-        return `${baseInstruction} na ${streetName}`;
-    }
-
-    return baseInstruction;
-}
-
-function finishNavigation() {
-    showToast('🎯 Chegou ao destino!', 'success');
-    
-    // Vibração de chegada
+  // Vibração quando muito próximo
+  const now = Date.now();
+  if (distanceToNext < 0.1 && (now - lastVibrationTime > 30000)) {
     if (navigator.vibrate) {
-        navigator.vibrate([200, 100, 200, 100, 200]);
+      navigator.vibrate([200, 100, 200]);
+      showToast(`Você está chegando na Parada ${nextDelivery.Sequence}!`, 'info');
+      lastVibrationTime = now;
     }
-    
-    stopNavigation();
+  }
 }
 
-function stopNavigation() {
-    isNavigating = false;
-    
-    // Para o rastreamento de navegação
-    if (navigationWatchId) {
-        navigator.geolocation.clearWatch(navigationWatchId);
-        navigationWatchId = null;
-    }
-    
-    // Oculta UI de navegação
-    document.getElementById('navigationBar').classList.add('hidden');
-    document.getElementById('navigationFooter').classList.add('hidden');
-    
-    // Mostra UI normal novamente
-    document.getElementById('nextStopBar').classList.remove('hidden');
-    ['settingsBtn', 'reOptimizeBtn'].forEach(id => {
-        document.getElementById(id).classList.remove('hidden');
-    });
-    
-    // Volta o zoom normal
-    map.setZoom(15);
-    
-    // Redesenha todas as rotas
-    updateUI();
-    
-    // Limpa variáveis de navegação
-    currentRoute = null;
-    navigationSteps = [];
-    currentStepIndex = 0;
+let locationUpdateInterval = null;
+
+function stopTracking() {
+  if (watchId !== null) {
+    navigator.geolocation.clearWatch(watchId);
+    watchId = null;
+  }
+  
+  if (trackingTimer) {
+    clearTimeout(trackingTimer);
+    trackingTimer = null;
+  }
+  
+  isTrackingActive = false;
+  saveState();
+  
+  // Remove listeners do mapa
+  if (map) {
+    map.off('movestart', onManualMapMove);
+    map.off('zoomstart', onManualMapMove);
+  }
+  
+  // ← ADICIONAR: Inicia atualizações periódicas quando para o rastreamento
+  if (locationUpdateInterval) clearInterval(locationUpdateInterval);
+  locationUpdateInterval = setInterval(updateLocationPeriodically, 30000); // A cada 30 segundos
+  
+  updateUserMarker(); // Atualiza o ícone para versão estática
+  showToast('Rastreamento desativado', 'info');
+  updateTrackingButtonState();
+}
+
+function updateTrackingButtonState() {
+  const btn = document.getElementById('toggleTrackingBtn');
+  const icon = btn.querySelector('i');
+  
+  if (isTrackingActive) {
+    btn.classList.remove('tracking-inactive');
+    btn.classList.add('tracking-active');
+    btn.title = 'Desativar Rastreamento';
+    icon.className = 'fas fa-location-arrow text-xl text-white';
+  } else {
+    btn.classList.remove('tracking-active');
+    btn.classList.add('tracking-inactive');
+    btn.title = 'Ativar Rastreamento';
+    icon.className = 'fas fa-location-arrow text-xl text-gray-400';
+  }
 }
 
 // Função auxiliar que apenas busca os dados da rota
@@ -2164,8 +2056,8 @@ async function drawAllRoutes() {
 
 function showMapControls(show) {
     const visibility = show ? 'remove' : 'add';
-    ["menuToggleBtn", "centerUserBtn", "reOptimizeBtn", "fullscreenBtn", "settingsBtn"].forEach(id => {
-      document.getElementById(id).classList[visibility]("hidden");
+    ["menuToggleBtn", "centerUserBtn", "reOptimizeBtn", "fullscreenBtn", "settingsBtn", "toggleTrackingBtn"].forEach(id => {
+      document.getElementById(id)?.classList[visibility]("hidden");
     });
 }
 
@@ -2261,6 +2153,7 @@ document.getElementById("settingsBtn").addEventListener("click", () => {
   
   document.getElementById('settingsModal').classList.remove('hidden');
   syncReturnToStartToggle();
+  toggleMenu(false);
 });
 
 // Listener para fechar o modal de configurações
@@ -2272,6 +2165,7 @@ document.getElementById("closeSettingsBtn").addEventListener("click", () => {
 document.getElementById('navAppSelect').addEventListener('change', (e) => {
   localStorage.setItem('navApp', e.target.value);
   showToast('Aplicativo de navegação salvo!', 'success');
+  
 });
 
 document.getElementById('autoZoomToggle').addEventListener('change', (e) => {
@@ -2307,10 +2201,11 @@ document.getElementById('reOptimizeBtn').addEventListener('click', reOptimizeFro
 document.getElementById('centerUserBtn').addEventListener('click', () => {
     if (userLocation) {
         map.setView(userLocation, 16);
-        showToast('📍 Centralizado na sua localização', 'info');
+        showToast('Centralizado na sua localização', 'info');
     } else {
         showToast('Localização não disponível', 'warn');
     }
+    toggleMenu(false);
 });
 
 // Funções para controlar o modal de progresso
@@ -2325,6 +2220,7 @@ function hideProgressModal() {
 
 // --- Botão de tela cheia ---
 document.getElementById("fullscreenBtn").addEventListener("click", () => {
+  toggleMenu(false);
   if (!document.fullscreenElement) {
     document.documentElement.requestFullscreen().catch(err => {
       showToast(`Erro ao ativar tela cheia: ${err.message}`, "error");
@@ -2361,11 +2257,9 @@ document.getElementById("themeToggleSwitch").addEventListener("click", () => {
     if (html.classList.contains("dark")) {
         html.classList.remove("dark");
         localStorage.setItem("theme", "light");
-        showToast("☀️ Tema claro ativado", "info");
     } else {
         html.classList.add("dark");
         localStorage.setItem("theme", "dark");
-        showToast("🌙 Tema escuro ativado", "info");
     }
     
     syncThemeSwitch(); // Sincroniza o visual do switch após a mudança
@@ -2408,6 +2302,7 @@ function toggleTheme() {
 
 // --- NOVOS LISTENERS PARA AS NOVAS CONFIGURAÇÕES ---
 document.getElementById("settingsBtn").addEventListener("click", () => {
+  toggleMenu(false);
   // Carrega as configurações salvas antes de mostrar
   document.getElementById('navAppSelect').value = localStorage.getItem('navApp') || 'google';
   syncThemeSwitch();
@@ -2502,150 +2397,6 @@ function initializeSortable() {
             }
         }
     });
-    
-    // Adiciona listeners para swipe em dispositivos touch
-    addSwipeListeners();
-}
-
-function addSwipeListeners() {
-    const routeItems = document.querySelectorAll('.route-item');
-    
-    routeItems.forEach(item => {
-        let startX = 0;
-        let isDragging = false;
-        let deleteButton = null;
-        
-        function createDeleteButton() {
-            if (deleteButton) return deleteButton;
-            
-            deleteButton = document.createElement('div');
-            deleteButton.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
-            deleteButton.className = 'delete-button';
-            deleteButton.style.cssText = `
-                position: absolute;
-                right: -60px;
-                top: 50%;
-                transform: translateY(-50%);
-                width: 50px;
-                height: 50px;
-                background: #ef4444;
-                color: white;
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 20px;
-                cursor: pointer;
-                z-index: 1000;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-                opacity: 0;
-                transition: opacity 0.2s ease;
-            `;
-            
-            deleteButton.addEventListener('click', () => {
-                const deliveryId = parseInt(item.getAttribute('data-delivery-id'));
-                removeDelivery(deliveryId);
-            });
-            
-            item.appendChild(deleteButton);
-            return deleteButton;
-        }
-        
-        function resetItem() {
-            item.style.transform = '';
-            item.style.backgroundColor = '';
-            item.style.borderColor = '';
-            if (deleteButton) {
-                deleteButton.style.opacity = '0';
-                setTimeout(() => {
-                    if (deleteButton && deleteButton.parentNode) {
-                        deleteButton.parentNode.removeChild(deleteButton);
-                        deleteButton = null;
-                    }
-                }, 200);
-            }
-            isDragging = false;
-        }
-        
-        // Mouse events
-        item.addEventListener('mousedown', (e) => {
-            if (e.target.classList.contains('delete-button')) return;
-            startX = e.clientX;
-            isDragging = false;
-            
-            const handleMouseMove = (e) => {
-                const diffX = startX - e.clientX;
-                
-                if (diffX > 20) {
-                    isDragging = true;
-                    const moveDistance = Math.min(diffX, 80);
-                    item.style.transform = `translateX(-45px)`;
-                    item.style.backgroundColor = '#fef2f2';
-                    item.style.borderColor = '#fca5a5';
-                    
-                    if (moveDistance > 30) {
-                        const btn = createDeleteButton();
-                        btn.style.opacity = '1';
-                    }
-                    
-                    e.preventDefault();
-                }
-            };
-            
-            const handleMouseUp = () => {
-                if (!isDragging) {
-                    resetItem();
-                } else if (item.style.transform.includes('translateX')) {
-                    // Mantém a posição para mostrar o botão
-                }
-                
-                document.removeEventListener('mousemove', handleMouseMove);
-                document.removeEventListener('mouseup', handleMouseUp);
-            };
-            
-            document.addEventListener('mousemove', handleMouseMove);
-            document.addEventListener('mouseup', handleMouseUp);
-        });
-        
-        // Touch events
-        item.addEventListener('touchstart', (e) => {
-            if (e.target.classList.contains('delete-button')) return;
-            startX = e.touches[0].clientX;
-            isDragging = false;
-        });
-        
-        item.addEventListener('touchmove', (e) => {
-            const diffX = startX - e.touches[0].clientX;
-            
-            if (diffX > 20) {
-                isDragging = true;
-                const moveDistance = Math.min(diffX, 80);
-                item.style.transform = `translateX(-${moveDistance}px)`;
-                item.style.backgroundColor = '#fef2f2';
-                item.style.borderColor = '#fca5a5';
-                
-                if (moveDistance > 30) {
-                    const btn = createDeleteButton();
-                    btn.style.opacity = '1';
-                }
-                
-                e.preventDefault();
-            }
-        });
-        
-        item.addEventListener('touchend', () => {
-            if (!isDragging) {
-                resetItem();
-            }
-        });
-        
-        // Clique fora para resetar
-        document.addEventListener('click', (e) => {
-            if (!item.contains(e.target)) {
-                resetItem();
-            }
-        });
-    });
 }
 
 function reorderDeliveries(oldIndex, newIndex) {
@@ -2658,11 +2409,9 @@ function reorderDeliveries(oldIndex, newIndex) {
         delivery.Sequence = index + 1;
     });
     
-    showToast(`Parada reordenada para posição ${newIndex + 1}`, 'success');
-    
-    // Salva e atualiza
+    // USA AS VERSÕES DEBOUNCED
     saveState();
-    updateUI();
+    debouncedUpdateUI(); // ← MUDANÇA AQUI
 }
 
 async function removeDelivery(deliveryId) {
@@ -2672,7 +2421,7 @@ async function removeDelivery(deliveryId) {
     
     const confirmed = await showConfirmModal(
         '🚨  Remover Parada',
-        `Deseja remover a parada "${delivery.STOP}" da rota?<br><br>Esta ação não pode ser desfeita.`
+        `Deseja remover o pacote <b><em>#${delivery.STOP}</em></b> da rota?<br><br>Esta ação não pode ser desfeita.`
     );
     
     if (confirmed) {
@@ -2695,55 +2444,36 @@ async function removeDelivery(deliveryId) {
     }
 }
 
-function updateSideList() {
-    const container = document.getElementById('routeList');
-    container.innerHTML = deliveryData.map(d => {
-        const statusConfig = {
-            entregue: { bg: 'bg-green-50 border-green-200', text: 'text-green-700', icon: 'fa-check-circle' },
-            naoentregue: { bg: 'bg-red-50 border-red-200', text: 'text-red-700', icon: 'fa-times-circle' },
-            pendente: { bg: 'bg-yellow-50 border-yellow-200', text: 'text-yellow-700', icon: 'fa-clock' }
-        };
-        const config = statusConfig[d.status] || statusConfig.pendente;
-        
-        const endereco = d['Destination Address'] || d['Endereço'] || 'Sem endereço';
-
-        return `
-          <div class="route-item p-3 rounded-lg mb-2 border ${config.bg} flex justify-between items-center cursor-move transition-all duration-200 hover:shadow-md" data-delivery-id="${d.id}">
-            <div class="flex items-center space-x-3 overflow-hidden">
-              <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center text-base font-bold flex-shrink-0" title="Parada Otimizada ${d.Sequence}">
-                ${d.Sequence}
-              </div>
-              <div>
-                <span class="text-sm font-semibold text-gray-800 truncate block">Pacote: <em>#${d.STOP}</em></span>
-                <span class="text-xs text-gray-500 truncate block">${endereco}</span>
-              </div>
-            </div>
-            <div class="flex items-center space-x-2 flex-shrink-0">
-              <i class="fas fa-grip-vertical text-gray-400 mr-2"></i>
-              <i class="fas ${config.icon} ${config.text}"></i>
-              <span class="${config.text} font-medium capitalize text-xs">${d.status.replace('naoentregue', 'não entregue')}</span>
-            </div>
-          </div>`;
-    }).join('');
-    
-    // Inicializa o Sortable após criar os elementos
-    initializeSortable();
-}
-
 let wakeLock = null;
 
 async function requestWakeLock() {
+  // Verifica se a página está visível antes de tentar
+  if (document.hidden || document.visibilityState !== 'visible') {
+    console.log('Página não visível, Wake Lock adiado');
+    return;
+  }
+
+  // Verifica se o navegador suporta Wake Lock
+  if (!('wakeLock' in navigator)) {
+    showToast('Wake Lock não suportado neste navegador.', 'warn');
+    return;
+  }
+
   try {
     wakeLock = await navigator.wakeLock.request('screen');
+    
     wakeLock.addEventListener('release', () => {
-      console.log('Wake Lock liberado');
-      showToast('A tela pode apagar novamente.', 'info');
+      wakeLock = null;
     });
-    console.log('Wake Lock ativo');
+    
     showToast('Tela mantida ligada.', 'success');
   } catch (err) {
-    console.error(`${err.name}, ${err.message}`);
-    showToast('Falha ao ativar manter tela ligada.', 'error');
+    console.error(`Wake Lock erro: ${err.name}, ${err.message}`);
+    
+    // Não mostra erro se a página não estiver visível
+    if (err.name !== 'NotAllowedError' || document.visibilityState === 'visible') {
+      showToast('Falha ao ativar manter tela ligada.', 'error');
+    }
   }
 }
 
@@ -2757,21 +2487,56 @@ function releaseWakeLock() {
 
 const wakeLockToggle = document.getElementById('wakeLockToggle');
 
-// 🔹 Restaurar estado salvo ao carregar
+// Restaurar estado salvo ao carregar
 const savedWakeLock = localStorage.getItem('wakeLockEnabled') === 'true';
 wakeLockToggle.checked = savedWakeLock;
-if (savedWakeLock) requestWakeLock();
 
-// 🔹 Alterar e salvar estado
+// Só ativa se a página estiver visível
+if (savedWakeLock && document.visibilityState === 'visible') {
+  requestWakeLock();
+}
+
+// Event listener do toggle
 wakeLockToggle.addEventListener('change', async (e) => {
   const enabled = e.target.checked;
   localStorage.setItem('wakeLockEnabled', enabled);
+  
   if (enabled) {
     await requestWakeLock();
   } else {
     releaseWakeLock();
   }
 });
+
+document.getElementById('toggleTrackingBtn').addEventListener('click', () => {
+  if (isTrackingActive) {
+    stopTracking();
+  } else {
+    startTracking();
+  }
+});
+
+// Reativação inteligente quando a aba volta a ser visível
+document.addEventListener('visibilitychange', async () => {
+  const wakeLockEnabled = localStorage.getItem('wakeLockEnabled') === 'true';
+  
+  if (document.visibilityState === 'visible' && wakeLockEnabled && !wakeLock) {
+    // Pequeno delay para garantir que a página está totalmente ativa
+    setTimeout(() => {
+      if (document.visibilityState === 'visible') {
+        requestWakeLock();
+      }
+    }, 500);
+  }
+});
+
+function releaseWakeLock() {
+  if (wakeLock) {
+    wakeLock.release();
+    wakeLock = null;
+    showToast('A tela pode apagar novamente.', 'info');
+  }
+}
 
 // 🔹 Se a aba perder foco e voltar, reativa se estava ligado
 document.addEventListener('visibilitychange', async () => {
@@ -2780,12 +2545,583 @@ document.addEventListener('visibilitychange', async () => {
   }
 });
 
-// Listener para cancelar navegação
-document.getElementById('cancelNavigationBtn').addEventListener('click', () => {
-    stopNavigation();
-    showToast('Navegação cancelada', 'info');
+// =================================================================================
+// SISTEMA COMPLETO DE CORREÇÃO INTELIGENTE DE ENDEREÇOS
+// =================================================================================
+
+
+// Novo listener que substitui o antigo
+document.getElementById("validateAddressesBtn").addEventListener("click", async () => {
+    if (deliveryData.length === 0) {
+        showToast('Carregue primeiro um arquivo com entregas', 'warn');
+        return;
+    }
+    
+    toggleMenu(false);
+    await smartAddressCorrection(deliveryData);
 });
 
+// Função de similaridade de endereços
+function calculateAddressSimilarity(address1, address2) {
+    if (!address1 || !address2) return 0;
+    
+    const normalize = (addr) => addr
+        .toLowerCase()
+        .replace(/[^\w\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    
+    const addr1 = normalize(address1);
+    const addr2 = normalize(address2);
+    
+    const extractKeywords = (addr) => {
+        const words = addr.split(' ');
+        return words.filter(word => 
+            word.length > 2 && 
+            !['rua', 'avenida', 'av', 'r', 'numero', 'nro', 'no', 'brasil', 'brazil', 'de', 'da', 'do', 'dos', 'das'].includes(word)
+        );
+    };
+    
+    const keywords1 = extractKeywords(addr1);
+    const keywords2 = extractKeywords(addr2);
+    
+    if (keywords1.length === 0 || keywords2.length === 0) return 0;
+    
+    let matches = 0;
+    keywords1.forEach(word1 => {
+        if (keywords2.some(word2 => 
+            word2.includes(word1) || 
+            word1.includes(word2) || 
+            levenshteinDistance(word1, word2) <= 2
+        )) {
+            matches++;
+        }
+    });
+    
+    return matches / Math.max(keywords1.length, keywords2.length);
+}
+
+// Função Levenshtein Distance
+function levenshteinDistance(str1, str2) {
+    if (str1.length === 0) return str2.length;
+    if (str2.length === 0) return str1.length;
+    
+    const matrix = [];
+    
+    for (let i = 0; i <= str2.length; i++) {
+        matrix[i] = [i];
+    }
+    
+    for (let j = 0; j <= str1.length; j++) {
+        matrix[0][j] = j;
+    }
+    
+    for (let i = 1; i <= str2.length; i++) {
+        for (let j = 1; j <= str1.length; j++) {
+            if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(
+                    matrix[i - 1][j - 1] + 1,
+                    matrix[i][j - 1] + 1,
+                    matrix[i - 1][j] + 1
+                );
+            }
+        }
+    }
+    
+    return matrix[str2.length][str1.length];
+}
+
+async function smartAddressCorrection(deliveryData) {
+    const corrections = [];
+    const clusters = findDeliveryGroups(deliveryData);
+    
+    showProgressModal('Analisando endereços...', 0);
+    
+    for (let i = 0; i < deliveryData.length; i++) {
+        const item = deliveryData[i];
+        const progress = ((i + 1) / deliveryData.length) * 100;
+        
+        showProgressModal(`Verificando ${i + 1}/${deliveryData.length}: Pacote #${item.STOP}`, progress);
+        
+        if (addressCorrectionsCache[item.id]) {
+            corrections.push(addressCorrectionsCache[item.id]);
+            continue;
+        }
+        
+        const correction = await analyzeAddressAccuracy(item, clusters);
+        if (correction.needsCorrection) {
+            corrections.push(correction);
+            addressCorrectionsCache[item.id] = correction;
+        }
+        
+        await delay(200);
+    }
+    
+    hideProgressModal();
+    
+    if (corrections.length > 0) {
+        await displayCorrectionInterface(corrections);
+    } else {
+        showToast('✅ Todos os endereços estão corretos!', 'success');
+    }
+}
+
+
+// Agrupa entregas por proximidade geográfica
+function findDeliveryGroups(deliveryData) {
+    const clusters = [];
+    const processed = new Set();
+    
+    deliveryData.forEach((delivery, index) => {
+        if (processed.has(index)) return;
+        
+        const cluster = [delivery];
+        const coords = { lat: parseFloat(delivery.Latitude), lng: parseFloat(delivery.Longitude) };
+        
+        // Encontra entregas próximas (raio de 2km)
+        deliveryData.forEach((other, otherIndex) => {
+            if (index === otherIndex || processed.has(otherIndex)) return;
+            
+            const otherCoords = { lat: parseFloat(other.Latitude), lng: parseFloat(other.Longitude) };
+            const distance = haversine(coords, otherCoords);
+            
+            if (distance <= 2) {
+                cluster.push(other);
+                processed.add(otherIndex);
+            }
+        });
+        
+        if (cluster.length > 0) {
+            clusters.push({
+                center: calculateClusterCenter(cluster),
+                deliveries: cluster,
+                avgDistance: calculateAverageDistance(cluster)
+            });
+        }
+        
+        processed.add(index);
+    });
+    
+    return clusters;
+}
+
+// Calcula centro do cluster
+function calculateClusterCenter(cluster) {
+    const totalLat = cluster.reduce((sum, d) => sum + parseFloat(d.Latitude), 0);
+    const totalLng = cluster.reduce((sum, d) => sum + parseFloat(d.Longitude), 0);
+    
+    return {
+        lat: totalLat / cluster.length,
+        lng: totalLng / cluster.length
+    };
+}
+
+// Calcula distância média no cluster
+function calculateAverageDistance(cluster) {
+    if (cluster.length < 2) return 0;
+    
+    let totalDistance = 0;
+    let pairs = 0;
+    
+    for (let i = 0; i < cluster.length; i++) {
+        for (let j = i + 1; j < cluster.length; j++) {
+            const coords1 = { lat: parseFloat(cluster[i].Latitude), lng: parseFloat(cluster[i].Longitude) };
+            const coords2 = { lat: parseFloat(cluster[j].Latitude), lng: parseFloat(cluster[j].Longitude) };
+            totalDistance += haversine(coords1, coords2);
+            pairs++;
+        }
+    }
+    
+    return pairs > 0 ? totalDistance / pairs : 0;
+}
+
+async function analyzeAddressAccuracy(item, clusters) {
+    const address = buildFullAddress(item);
+    const currentCoords = { lat: parseFloat(item.Latitude), lng: parseFloat(item.Longitude) };
+    
+    if (isNaN(currentCoords.lat) || isNaN(currentCoords.lng)) {
+        return { needsCorrection: false, reason: 'Coordenadas inválidas' };
+    }
+    
+    const geocodeResult = await geocodeAddress(address);
+    if (!geocodeResult) {
+        return { needsCorrection: false, reason: 'Endereço não pôde ser geocodificado' };
+    }
+    
+    const distanceToCorrect = haversine(currentCoords, geocodeResult);
+    
+    // Verifica se bairro ou CEP batem
+    const addressMatch = compareAddressDetails(item, geocodeResult.addressDetails);
+    
+    // Decide se precisa correção:
+    // Corrige se distância > 0.5 km ou se bairro/CEP não batem
+    const needsCorrection = distanceToCorrect > 0.5 || !addressMatch;
+    
+    if (needsCorrection) {
+        return {
+            needsCorrection: true,
+            item: item,
+            currentCoords: currentCoords,
+            correctCoords: { lat: geocodeResult.lat, lng: geocodeResult.lng },
+            distance: distanceToCorrect,
+            confidence: 1,
+            contextAnalysis: null,
+            address: address
+        };
+    }
+    
+    return { needsCorrection: false };
+}
+
+function buildFullAddress(item) {
+    const parts = [
+        item['Destination Address'] || item.Endereço || item.endereco || '',
+        item.Bairro || item.bairro || '',
+        item.City || item.cidade || item.Cidade || '',
+        item['Zipcode/Postal code'] || item.CEP || item.cep || ''
+    ].filter(part => part && part.trim().length > 0);
+
+    const fullAddress = parts.join(', ');
+
+    console.log(`Endereço completo para geocodificação (Parada #${item.STOP}):`, fullAddress);
+
+    return fullAddress;
+}
+
+// Analisa contexto geográfico
+function analyzeGeographicContext(item, clusters, correctCoords) {
+    let bestCluster = null;
+    let minDistanceToCluster = Infinity;
+    
+    clusters.forEach(cluster => {
+        const distanceToCenter = haversine(correctCoords, cluster.center);
+        if (distanceToCenter < minDistanceToCluster) {
+            minDistanceToCluster = distanceToCenter;
+            bestCluster = cluster;
+        }
+    });
+    
+    const nearbyDeliveries = findNearbyDeliveries(item, clusters, correctCoords);
+    
+    return {
+        bestCluster: bestCluster,
+        distanceToCluster: minDistanceToCluster,
+        nearbyDeliveries: nearbyDeliveries,
+        isIsolated: minDistanceToCluster > 5,
+        hasSimilarAddresses: nearbyDeliveries.length > 0
+    };
+}
+
+// Encontra entregas próximas
+function findNearbyDeliveries(item, clusters, correctCoords) {
+    const itemAddress = buildFullAddress(item).toLowerCase();
+    const nearby = [];
+    
+    clusters.forEach(cluster => {
+        cluster.deliveries.forEach(delivery => {
+            if (delivery.id === item.id) return;
+            
+            const deliveryAddress = buildFullAddress(delivery).toLowerCase();
+            const similarity = calculateAddressSimilarity(itemAddress, deliveryAddress);
+            const distance = haversine(correctCoords, {
+                lat: parseFloat(delivery.Latitude),
+                lng: parseFloat(delivery.Longitude)
+            });
+            
+            if (similarity > 0.6 || distance < 1) {
+                nearby.push({
+                    delivery: delivery,
+                    similarity: similarity,
+                    distance: distance
+                });
+            }
+        });
+    });
+    
+    return nearby.sort((a, b) => b.similarity - a.similarity);
+}
+
+// Determina se precisa correção
+function shouldCorrectAddress(distance, contextAnalysis) {
+    if (distance > 1) return true;
+    
+    if (distance > 0.5 && contextAnalysis.distanceToCluster > 3) {
+        return true;
+    }
+    
+    if (contextAnalysis.nearbyDeliveries.length > 0) {
+        const bestMatch = contextAnalysis.nearbyDeliveries[0];
+        if (bestMatch.similarity > 0.8 && bestMatch.distance < 0.5) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// Calcula confiança da correção
+function calculateCorrectionConfidence(distance, contextAnalysis) {
+    let confidence = 0;
+    
+    if (distance > 2) confidence += 0.4;
+    else if (distance > 1) confidence += 0.3;
+    else if (distance > 0.5) confidence += 0.2;
+    else confidence += 0.1;
+    
+    if (contextAnalysis.nearbyDeliveries.length > 0) {
+        const bestMatch = contextAnalysis.nearbyDeliveries[0];
+        confidence += (bestMatch.similarity * 0.3);
+    }
+    
+    if (contextAnalysis.distanceToCluster > 5) {
+        confidence += 0.2;
+    }
+    
+    return Math.min(confidence, 1);
+}
+
+// Interface para correções
+async function displayCorrectionInterface(corrections) {
+    const highConfidence = corrections.filter(c => c.confidence > 0.7);
+    const mediumConfidence = corrections.filter(c => c.confidence >= 0.4 && c.confidence <= 0.7);
+    const lowConfidence = corrections.filter(c => c.confidence < 0.4);
+    
+    const modalHTML = `
+        <div id="correctionModal" class="fixed inset-0 bg-black bg-opacity-60 z-[10000] flex items-center justify-center p-4">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                <div class="sticky top-0 bg-white dark:bg-gray-800 border-b p-6 rounded-t-2xl">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-800 dark:text-white">🎯 Correção Inteligente de Endereços</h3>
+                            <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                                ${corrections.length} endereços precisam de correção
+                            </p>
+                        </div>
+                        <button id="closeCorrectionModal" class="text-gray-500 hover:text-red-500">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="p-6 space-y-6">
+                    ${highConfidence.length > 0 ? `
+                        <div class="space-y-3">
+                            <h4 class="font-semibold text-green-700 dark:text-green-400 flex items-center">
+                                <i class="fas fa-check-circle mr-2"></i>
+                                Correções Automáticas (${highConfidence.length})
+                            </h4>
+                            <div class="space-y-2">
+                                ${highConfidence.map(c => createCorrectionCard(c, 'auto')).join('')}
+                            </div>
+                            <button id="applyAutoCorrections" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg">
+                                <i class="fas fa-magic mr-2"></i>Aplicar Todas as Correções Automáticas
+                            </button>
+                        </div>
+                    ` : ''}
+                    
+                    ${mediumConfidence.length > 0 ? `
+                        <div class="space-y-3">
+                            <h4 class="font-semibold text-yellow-700 dark:text-yellow-400 flex items-center">
+                                <i class="fas fa-exclamation-triangle mr-2"></i>
+                                Correções Sugeridas (${mediumConfidence.length})
+                            </h4>
+                            <div class="space-y-2">
+                                ${mediumConfidence.map(c => createCorrectionCard(c, 'suggested')).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    ${lowConfidence.length > 0 ? `
+                        <div class="space-y-3">
+                            <h4 class="font-semibold text-red-700 dark:text-red-400 flex items-center">
+                                <i class="fas fa-question-circle mr-2"></i>
+                                Revisar Manualmente (${lowConfidence.length})
+                            </h4>
+                            <div class="space-y-2">
+                                ${lowConfidence.map(c => createCorrectionCard(c, 'manual')).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Event listeners
+    document.getElementById('closeCorrectionModal').onclick = () => {
+        document.getElementById('correctionModal').remove();
+    };
+    
+    if (highConfidence.length > 0) {
+        document.getElementById('applyAutoCorrections').onclick = () => {
+            applyMultipleCorrections(highConfidence);
+        };
+    }
+    
+    // Listeners individuais
+    corrections.forEach(correction => {
+        const applyBtn = document.getElementById(`apply-${correction.item.id}`);
+        const previewBtn = document.getElementById(`preview-${correction.item.id}`);
+        
+        if (applyBtn) {
+            applyBtn.onclick = () => applySingleCorrection(correction);
+        }
+        
+        if (previewBtn) {
+            previewBtn.onclick = () => previewCorrection(correction);
+        }
+    });
+}
+
+// Cria card de correção
+function createCorrectionCard(correction, type) {
+    const confidencePercent = Math.round(correction.confidence * 100);
+    const distanceText = correction.distance < 1 ? 
+        `${Math.round(correction.distance * 1000)}m` : 
+        `${correction.distance.toFixed(1)}km`;
+    
+    const confidenceColor = correction.confidence > 0.7 ? 'text-green-600' : 
+                           correction.confidence > 0.4 ? 'text-yellow-600' : 'text-red-600';
+    
+    return `
+        <div class="border rounded-lg p-4 ${type === 'auto' ? 'border-green-200 bg-green-50' : 
+                                           type === 'suggested' ? 'border-yellow-200 bg-yellow-50' : 
+                                           'border-red-200 bg-red-50'} dark:bg-gray-700 dark:border-gray-600">
+            <div class="flex justify-between items-start mb-3">
+                <div class="flex-1">
+                    <h5 class="font-semibold text-gray-800 dark:text-white">
+                        Parada #${correction.item.STOP} • Sequência ${correction.item.Sequence}
+                    </h5>
+                    <div class="flex items-center mt-1 space-x-4">
+                        <span class="${confidenceColor} text-sm font-medium">
+                            Confiança: ${confidencePercent}%
+                        </span>
+                        <span class="text-gray-600 dark:text-gray-300 text-sm">
+                            Distância: ${distanceText}
+                        </span>
+                    </div>
+                </div>
+                <div class="flex space-x-2">
+                    <button id="preview-${correction.item.id}" 
+                            class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">
+                        <i class="fas fa-eye mr-1"></i>Ver
+                    </button>
+                    <button id="apply-${correction.item.id}" 
+                            class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm">
+                        <i class="fas fa-check mr-1"></i>Aplicar
+                    </button>
+                </div>
+            </div>
+            
+            <div class="text-sm space-y-1">
+                <div class="text-gray-700 dark:text-gray-300">
+                    <strong>Endereço:</strong> ${correction.address}
+                </div>
+                <div class="text-gray-600 dark:text-gray-400">
+                    <strong>Atual:</strong> ${correction.currentCoords.lat.toFixed(6)}, ${correction.currentCoords.lng.toFixed(6)}
+                </div>
+                <div class="text-green-600 dark:text-green-400">
+                    <strong>Corrigido:</strong> ${correction.correctCoords.lat.toFixed(6)}, ${correction.correctCoords.lng.toFixed(6)}
+                </div>
+                
+                ${correction.contextAnalysis?.nearbyDeliveries?.length > 0 ? `
+                  <div class="mt-2 text-xs text-blue-600 dark:text-blue-400">
+                      <i class="fas fa-info-circle mr-1"></i>
+                      ${correction.contextAnalysis.nearbyDeliveries.length} entrega(s) similar(es) encontrada(s) na região
+                  </div>
+              ` : ''}
+            </div>
+        </div>
+    `;
+}
+
+// Aplica correção individual
+function applySingleCorrection(correction) {
+    const item = deliveryData.find(d => d.id === correction.item.id);
+    if (item) {
+        item.Latitude = correction.correctCoords.lat;
+        item.Longitude = correction.correctCoords.lng;
+        
+        showToast(`✅ Parada #${item.STOP} corrigida!`, 'success');
+        
+        const card = document.getElementById(`apply-${correction.item.id}`).closest('.border');
+        card.style.opacity = '0.5';
+        card.style.pointerEvents = 'none';
+        
+        saveState();
+        updateUI();
+    }
+}
+
+// Aplica múltiplas correções
+function applyMultipleCorrections(corrections) {
+    let corrected = 0;
+    
+    corrections.forEach(correction => {
+        const item = deliveryData.find(d => d.id === correction.item.id);
+        if (item) {
+            item.Latitude = correction.correctCoords.lat;
+            item.Longitude = correction.correctCoords.lng;
+            corrected++;
+        }
+    });
+    
+    showToast(`✅ ${corrected} endereços corrigidos automaticamente!`, 'success');
+    
+    document.getElementById('correctionModal').remove();
+    saveState();
+    updateUI();
+}
+
+// Preview da correção
+function previewCorrection(correction) {
+    if (!map) return;
+    
+    const currentMarker = L.marker([correction.currentCoords.lat, correction.currentCoords.lng], {
+        icon: L.divIcon({
+            className: '',
+            html: `<div style="background-color: red; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
+                     ${correction.item.Sequence}
+                   </div>`
+        })
+    }).bindPopup(`<b>Posição Atual (Incorreta)</b><br>Parada #${correction.item.STOP}`);
+    
+    const correctMarker = L.marker([correction.correctCoords.lat, correction.correctCoords.lng], {
+        icon: L.divIcon({
+            className: '',
+            html: `<div style="background-color: green; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
+                     ${correction.item.Sequence}
+                   </div>`
+        })
+    }).bindPopup(`<b>Posição Corrigida</b><br>Parada #${correction.item.STOP}<br>${correction.address}`);
+    
+    const line = L.polyline([
+        [correction.currentCoords.lat, correction.currentCoords.lng],
+        [correction.correctCoords.lat, correction.correctCoords.lng]
+    ], { color: 'orange', weight: 3, dashArray: '5, 5' });
+    
+    currentMarker.addTo(map);
+    correctMarker.addTo(map);
+    line.addTo(map);
+    
+    const bounds = L.latLngBounds([
+        [correction.currentCoords.lat, correction.currentCoords.lng],
+        [correction.correctCoords.lat, correction.correctCoords.lng]
+    ]);
+    map.fitBounds(bounds, { padding: [50, 50] });
+    
+    setTimeout(() => {
+        map.removeLayer(currentMarker);
+        map.removeLayer(correctMarker);
+        map.removeLayer(line);
+    }, 10000);
+    
+    showToast(`Preview da correção da Parada #${correction.item.STOP}`, 'info');
+}
 </script>
 </body>
 </html>
